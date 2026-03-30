@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
 import { useSequencerStore } from '../store/sequencerStore';
+import { makePresetPatterns } from '../audio/presets';
 import { downloadProject, loadProjectFile } from '../utils/projectExport';
 
 const BPM_MIN = 40;
@@ -7,14 +8,14 @@ const BPM_MAX = 300;
 
 export default function Transport() {
   const {
-    bpm, isPlaying, masterVolume, masterCompressor, themeMode,
+    bpm, isPlaying, masterVolume, masterCompressor, themeMode, currentSoundPack,
     previewOnStepToggle, setPreviewOnStepToggle, visualizerVisible, setVisualizerVisible,
     play, pause, stop, setBpm, tapTempo, setMasterVolume, toggleCompressor,
     patterns, currentPatternId, queuedPatternId, setCurrentPattern,
     addPattern, duplicatePattern, deletePattern, renamePattern,
-    setStepCount, setSwing, setThemeMode,
+    setStepCount, setSwing, setThemeMode, setSoundPack,
     undo, redo, past, future,
-    resetAll, saveToStorage, loadPresetPatterns,
+    resetAll, saveToStorage, loadPresetPatterns, applyPatternPreset,
     showEditor, setShowEditor,
     instruments, setEditingInstrument, setActiveEditorTab,
     importProject, getProjectExportData,
@@ -23,6 +24,7 @@ export default function Transport() {
   const currentPattern = patterns.find(p => p.id === currentPatternId)!;
   const [renamingId, setRenamingId] = useState<string | null>(null);
   const [renameVal, setRenameVal] = useState('');
+  const [patternPreset, setPatternPreset] = useState('');
   const [showSettings, setShowSettings] = useState(false);
   const bpmInputRef = useRef<HTMLInputElement>(null);
 
@@ -152,6 +154,39 @@ export default function Transport() {
           <span className="text-purple-400 text-[9px] font-mono w-7">{Math.round(masterVolume * 100)}%</span>
         </div>
 
+        {/* Sound Pack selector (always visible) */}
+        <select
+          value={currentSoundPack}
+          onChange={(e) => setSoundPack(e.target.value as any)}
+          className="px-2 py-1 rounded-lg text-[9px] font-bold bg-gray-700 text-gray-300 hover:text-white transition-all border border-gray-600 outline-none cursor-pointer"
+          title="Sound Pack (affects all instruments)"
+        >
+          <option value="default">🎚 Default</option>
+          <option value="ambient">☁️ Ambient</option>
+          <option value="chiptune">🎮 Chiptune</option>
+          <option value="synthwave">🌅 Synthwave</option>
+          <option value="lo-fi">📻 Lo-Fi</option>
+          <option value="harsh">⚡ Harsh</option>
+        </select>
+
+        {/* Pattern Preset selector */}
+        <select
+          value={patternPreset}
+          onChange={(e) => {
+            const selectedId = e.target.value;
+            setPatternPreset(''); // reset to placeholder after applying
+            if (!selectedId) return;
+            applyPatternPreset(selectedId);
+          }}
+          className="px-2 py-1 rounded-lg text-[9px] font-bold bg-gray-700 text-gray-300 hover:text-white transition-all border border-gray-600 outline-none cursor-pointer"
+          title="Pattern Preset (replace current pattern)"
+        >
+          <option value="">🎵 Pattern Presets</option>
+          {makePresetPatterns(instruments).map(p => (
+            <option key={p.id} value={p.id}>{p.name}</option>
+          ))}
+        </select>
+
         {/* Undo / Redo */}
         <div className="flex gap-1 ml-auto">
           <button
@@ -218,7 +253,7 @@ export default function Transport() {
             <option value="retro">🎮 Retro</option>
             <option value="dark">🌙 Dark</option>
             <option value="high-contrast">⚡ HC</option>
-          </select>
+          </select>  
 
           <button
             onClick={() => downloadProject(getProjectExportData())}
@@ -244,11 +279,6 @@ export default function Transport() {
             onClick={() => { saveToStorage(); }}
             className="px-3 py-1 rounded-lg text-[9px] font-bold bg-gray-700 text-green-400 hover:bg-gray-600 transition-all"
           >💾 Save</button>
-          <button
-            onClick={() => loadPresetPatterns()}
-            className="px-3 py-1 rounded-lg text-[9px] font-bold bg-gray-700 text-yellow-400 hover:bg-gray-600 transition-all"
-            title="Load 4 preset patterns"
-          >⭐ Load Presets</button>
           <button
             onClick={() => {
               if (window.confirm('Reset everything? This cannot be undone.')) resetAll();

@@ -1,5 +1,6 @@
 export type WaveShape = 'square' | 'sawtooth' | 'triangle' | 'sine' | 'noise' | 'pulse';
 export type ThemeMode = 'retro' | 'dark' | 'high-contrast';
+export type SoundPack = 'default' | 'ambient' | 'chiptune' | 'synthwave' | 'lo-fi' | 'harsh';
 
 export type InstrumentType =
   | 'kick' | 'snare' | 'hihat' | 'openhat' | 'clap'
@@ -80,6 +81,8 @@ export interface SequencerState {
   currentPatternId: string;
   patterns: Pattern[];
   instruments: InstrumentParams[];
+  baseSoundParams: InstrumentParams[];  // Original instrument params before sound packs
+  currentSoundPack: SoundPack;
   masterVolume: number;
   masterCompressor: boolean;
   reverbEnabled: boolean;

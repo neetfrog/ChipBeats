@@ -1,6 +1,6 @@
 import { create } from 'zustand';
 import { SequencerState, InstrumentParams, Pattern, Step } from '../types';
-import { DEFAULT_INSTRUMENTS, defaultPattern, makePresetPatterns, makeStep } from '../audio/presets';
+import { DEFAULT_INSTRUMENTS, defaultPattern, makePresetPatterns, makeStep, applySoundPack } from '../audio/presets';
 import {
   playInstrument, getAudioContext, setMasterVolume,
   setCompressorEnabled, getAnalyser,
@@ -11,6 +11,7 @@ const STORAGE_KEY = 'chipbeat_v2';
 
 const INITIAL_INSTRUMENTS = DEFAULT_INSTRUMENTS.map(i => ({ ...i }));
 const INITIAL_PATTERN = defaultPattern(INITIAL_INSTRUMENTS, 16);
+const INITIAL_SOUND_PACK: import('../types').SoundPack = 'default';
 
 // ── Tap tempo state ──────────────────────────────────────────────────────────
 let tapTimes: number[] = [];
@@ -100,6 +101,7 @@ interface Store extends SequencerState {
   setSoloTrack: (idx: number | null) => void;
   moveTrackUp: (idx: number) => void;
   moveTrackDown: (idx: number) => void;
+  setSoundPack: (pack: import('../types').SoundPack) => void;
 
   // UI
   setShowEditor: (show: boolean) => void;
@@ -119,6 +121,7 @@ interface Store extends SequencerState {
   saveToStorage: () => void;
   resetAll: () => void;
   loadPresetPatterns: () => void;
+  applyPatternPreset: (presetId: string) => void;
   
   // Import / export
   importProject: (data: import('../utils/projectExport').ProjectExport) => void;
@@ -140,13 +143,16 @@ function mergeInstruments(saved: InstrumentParams[] | undefined): InstrumentPara
 
 function buildInitial(): Omit<SequencerState, never> {
   const saved = loadState();
+  const mergedInstruments = mergeInstruments(saved?.instruments);
   return {
     bpm: saved?.bpm ?? 120,
     isPlaying: false,
     currentStep: -1,
     currentPatternId: saved?.currentPatternId ?? INITIAL_PATTERN.id,
     patterns: saved?.patterns ?? [INITIAL_PATTERN],
-    instruments: mergeInstruments(saved?.instruments),
+    instruments: mergedInstruments,
+    baseSoundParams: mergedInstruments.map(i => ({ ...i })),
+    currentSoundPack: saved?.currentSoundPack ?? 'default',
     masterVolume: saved?.masterVolume ?? 0.85,
     masterCompressor: saved?.masterCompressor ?? true,
     reverbEnabled: saved?.reverbEnabled ?? true,
@@ -268,11 +274,27 @@ export const useSequencerStore = create<Store>((set, get) => ({
 
   // ── Patterns ──────────────────────────────────────────────────────────────
   setCurrentPattern: (id) => {
-    if (get().isPlaying) {
+    const s = get();
+
+    // While playing: queue for next cycle
+    if (s.isPlaying) {
       set({ queuedPatternId: id });
       return;
     }
-    set({ currentPatternId: id, currentStep: -1, queuedPatternId: null });
+
+    // While paused: switch instantly
+    const selectedPattern = s.patterns.find(p => p.id === id);
+    if (selectedPattern && selectedPattern.id.startsWith('preset_')) {
+      const adjustedInsts = applyPresetInstrumentAdjustments(s.instruments, selectedPattern.id);
+      set({
+        currentPatternId: id,
+        currentStep: -1,
+        queuedPatternId: null,
+        instruments: adjustedInsts,
+      });
+    } else {
+      set({ currentPatternId: id, currentStep: -1, queuedPatternId: null });
+    }
   },
 
   addPattern: () => {
@@ -638,6 +660,13 @@ export const useSequencerStore = create<Store>((set, get) => ({
     }));
   },
 
+  setSoundPack: (pack) => {
+    const s = get();
+    const adjustedInstruments = applySoundPack(s.baseSoundParams, pack);
+    set({ currentSoundPack: pack, instruments: adjustedInstruments });
+    get().saveToStorage();
+  },
+
   // ── UI ───────────────────────────────────────────────────────────────────
   setShowEditor: (show) => set({ showEditor: show }),
   setActiveEditorTab: (tab) => set({ activeEditorTab: tab }),
@@ -731,6 +760,34 @@ export const useSequencerStore = create<Store>((set, get) => ({
     const s = get();
     const presets = makePresetPatterns(s.instruments);
     set({ patterns: [...s.patterns, ...presets] });
+    get().saveToStorage();
+  },
+
+  applyPatternPreset: (presetId: string) => {
+    const s = get();
+    const currentPatternId = s.currentPatternId;
+    const activePatternIndex = s.patterns.findIndex(p => p.id === currentPatternId);
+    if (activePatternIndex === -1) return;
+
+    const preset = makePresetPatterns(s.instruments).find(p => p.id === presetId);
+    if (!preset) return;
+
+    get()._snapshot();
+
+    const updatedPattern = {
+      ...s.patterns[activePatternIndex],
+      stepCount: preset.stepCount,
+      swing: preset.swing,
+      tracks: preset.tracks.map(track => ({
+        instrumentId: track.instrumentId,
+        steps: track.steps.map(step => ({ ...step })),
+      })),
+    };
+
+    const newPatterns = [...s.patterns];
+    newPatterns[activePatternIndex] = updatedPattern;
+
+    set({ patterns: newPatterns });
     get().saveToStorage();
   },
 
