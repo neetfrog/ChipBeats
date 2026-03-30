@@ -21,14 +21,14 @@ function _buildGraph() {
 
   // Master chain: gainNode → compressor → analyser → destination
   masterGain = ctx.createGain();
-  masterGain.gain.value = 0.85;
+  masterGain.gain.value = 0.88;
 
   masterCompressor = ctx.createDynamicsCompressor();
-  masterCompressor.threshold.value = -12;
-  masterCompressor.knee.value = 6;
-  masterCompressor.ratio.value = 4;
-  masterCompressor.attack.value = 0.003;
-  masterCompressor.release.value = 0.15;
+  masterCompressor.threshold.value = -10;
+  masterCompressor.knee.value = 3;
+  masterCompressor.ratio.value = 5;
+  masterCompressor.attack.value = 0.002;
+  masterCompressor.release.value = 0.12;
 
   analyserNode = ctx.createAnalyser();
   analyserNode.fftSize = 512;
@@ -36,7 +36,7 @@ function _buildGraph() {
 
   // Reverb (impulse response generated synthetically)
   reverbNode = ctx.createConvolver();
-  reverbNode.buffer = _makeReverbIR(ctx, 1.8, 3.5);
+  reverbNode.buffer = _makeReverbIR(ctx, 1.2, 4.2);
   reverbGain = ctx.createGain();
   reverbGain.gain.value = 0;
 

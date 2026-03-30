@@ -10,11 +10,11 @@ export default function Transport() {
     bpm, isPlaying, masterVolume, masterCompressor, themeMode,
     previewOnStepToggle, setPreviewOnStepToggle, visualizerVisible, setVisualizerVisible,
     play, pause, stop, setBpm, tapTempo, setMasterVolume, toggleCompressor,
-    patterns, currentPatternId, setCurrentPattern,
+    patterns, currentPatternId, queuedPatternId, setCurrentPattern,
     addPattern, duplicatePattern, deletePattern, renamePattern,
     setStepCount, setSwing, setThemeMode,
     undo, redo, past, future,
-    resetAll, saveToStorage,
+    resetAll, saveToStorage, loadPresetPatterns,
     showEditor, setShowEditor,
     instruments, setEditingInstrument, setActiveEditorTab,
     importProject, getProjectExportData,
@@ -41,7 +41,8 @@ export default function Transport() {
       const tag = (e.target as HTMLElement).tagName;
       if (tag === 'INPUT' || tag === 'TEXTAREA') return;
 
-      if (e.code === 'Space') {
+      const isSpaceKey = e.code === 'Space' || e.key === ' ' || e.key === 'Spacebar';
+      if (isSpaceKey) {
         e.preventDefault();
         isPlaying ? pause() : play();
       }
@@ -244,6 +245,11 @@ export default function Transport() {
             className="px-3 py-1 rounded-lg text-[9px] font-bold bg-gray-700 text-green-400 hover:bg-gray-600 transition-all"
           >💾 Save</button>
           <button
+            onClick={() => loadPresetPatterns()}
+            className="px-3 py-1 rounded-lg text-[9px] font-bold bg-gray-700 text-yellow-400 hover:bg-gray-600 transition-all"
+            title="Load 4 preset patterns"
+          >⭐ Load Presets</button>
+          <button
             onClick={() => {
               if (window.confirm('Reset everything? This cannot be undone.')) resetAll();
             }}
@@ -282,9 +288,13 @@ export default function Transport() {
                   className={`px-2 py-1 rounded-lg text-[9px] font-bold tracking-wide transition-all active:scale-95 ${
                     p.id === currentPatternId
                       ? 'bg-purple-600 text-white shadow-lg shadow-purple-500/25'
-                      : 'bg-gray-800 text-gray-400 hover:bg-gray-700 hover:text-white'
+                      : queuedPatternId === p.id
+                        ? 'bg-yellow-400 text-black shadow-lg shadow-yellow-400/40 ring-2 ring-amber-300'
+                        : 'bg-gray-800 text-gray-400 hover:bg-gray-700 hover:text-white'
                   }`}
-                >{p.name}</button>
+                >
+                  {p.name}
+                </button>
               )}
               {/* Context actions on hover */}
               <div className="absolute -top-1 -right-1 hidden group-hover:flex gap-0.5">

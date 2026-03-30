@@ -1,6 +1,6 @@
 import { create } from 'zustand';
 import { SequencerState, InstrumentParams, Pattern, Step } from '../types';
-import { DEFAULT_INSTRUMENTS, defaultPattern, makeStep } from '../audio/presets';
+import { DEFAULT_INSTRUMENTS, defaultPattern, makePresetPatterns, makeStep } from '../audio/presets';
 import {
   playInstrument, getAudioContext, setMasterVolume,
   setCompressorEnabled, getAnalyser,
@@ -24,8 +24,8 @@ function getStepDuration(bpm: number, swing: number, step: number): number {
   const base = 60 / bpm / 4; // 16th note
   const clampedSwing = Math.max(0, Math.min(1, swing));
   const swingOffset = clampedSwing * base * 0.5;
-  // Apply swing as long (delayed off-beat) on even steps and short on odd steps
-  return step % 2 === 0 ? base + swingOffset : base - swingOffset;
+  // Apply swing as delayed off-beat: short on the primary (even) steps, long on secondary (odd) steps
+  return step % 2 === 0 ? base - swingOffset : base + swingOffset;
 }
 
 function _deepClonePatterns(patterns: Pattern[]): Pattern[] {
@@ -118,6 +118,7 @@ interface Store extends SequencerState {
   // Save / load
   saveToStorage: () => void;
   resetAll: () => void;
+  loadPresetPatterns: () => void;
   
   // Import / export
   importProject: (data: import('../utils/projectExport').ProjectExport) => void;
@@ -163,6 +164,7 @@ function buildInitial(): Omit<SequencerState, never> {
     chainedPatternIds: saved?.chainedPatternIds ?? [],
     chainPlaying: false,
     chainStep: 0,
+    queuedPatternId: null,
   };
 }
 
@@ -207,8 +209,17 @@ export const useSequencerStore = create<Store>((set, get) => ({
         const delay = Math.max(0, (nextStepTime - ctxNow) * 1000);
         setTimeout(() => { set({ currentStep: uiStep }); }, delay);
 
+        const isEndOfPattern = step === pattern.stepCount - 1;
         nextStepTime += getStepDuration(s.bpm, pattern.swing, internalStep);
         internalStep++;
+
+        if (isEndOfPattern) {
+          const queued = get().queuedPatternId;
+          if (queued) {
+            set({ currentPatternId: queued, queuedPatternId: null, currentStep: -1 });
+            internalStep = 0;
+          }
+        }
       }
     }, 20);
   },
@@ -257,10 +268,11 @@ export const useSequencerStore = create<Store>((set, get) => ({
 
   // ── Patterns ──────────────────────────────────────────────────────────────
   setCurrentPattern: (id) => {
-    const wasPlaying = get().isPlaying;
-    get().stop();
-    set({ currentPatternId: id, currentStep: -1 });
-    if (wasPlaying) setTimeout(() => get().play(), 10);
+    if (get().isPlaying) {
+      set({ queuedPatternId: id });
+      return;
+    }
+    set({ currentPatternId: id, currentStep: -1, queuedPatternId: null });
   },
 
   addPattern: () => {
@@ -712,6 +724,14 @@ export const useSequencerStore = create<Store>((set, get) => ({
       future: [],
     });
     localStorage.removeItem(STORAGE_KEY);
+  },
+
+  loadPresetPatterns: () => {
+    get()._snapshot();
+    const s = get();
+    const presets = makePresetPatterns(s.instruments);
+    set({ patterns: [...s.patterns, ...presets] });
+    get().saveToStorage();
   },
 
   // ── Import / Export ───────────────────────────────────────────────────────

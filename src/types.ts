@@ -100,4 +100,5 @@ export interface SequencerState {
   chainedPatternIds: string[];
   chainPlaying: boolean;
   chainStep: number;
+  queuedPatternId?: string | null;
 }

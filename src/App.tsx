@@ -1,4 +1,4 @@
-import { useEffect, Suspense, lazy } from 'react';
+import { useEffect, useState, Suspense, lazy } from 'react';
 import Transport from './components/Transport';
 import StepGrid from './components/StepGrid';
 import Keyboard from './components/Keyboard';
@@ -14,6 +14,7 @@ function LoadingPlaceholder() {
 }
 
 export default function App() {
+  const [showModal, setShowModal] = useState(false);
   const { showEditor, isPlaying, editingInstrumentId, setShowEditor, setActiveEditorTab, setEditingInstrument, visualizerVisible, themeMode } = useSequencerStore();
 
   const theme = getTheme(themeMode);
@@ -172,9 +173,37 @@ export default function App() {
           </div>
 
           {/* ── Footer ── */}
-          <div className="text-center text-gray-800 text-[8px] tracking-[0.25em] uppercase pt-2">
-            ChipBeat · Web Audio API · All sounds generated in-code
+          <div className="space-y-2 text-center">
+            <button
+              onClick={() => setShowModal(true)}
+              className="text-[10px] font-semibold uppercase tracking-wider text-green-300 hover:text-green-100"
+              style={{ background: 'transparent', border: 'none', padding: 0 }}
+            >
+              About
+            </button>
           </div>
+
+          {showModal && (
+            <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-4">
+              <div className="w-full max-w-lg rounded-xl border border-gray-700 bg-slate-900 p-4 text-sm text-gray-100">
+                <div className="flex items-center justify-between pb-2">
+                  <h2 className="text-base font-bold uppercase tracking-wider">Quickstart</h2>
+                  <button onClick={() => setShowModal(false)} className="text-sm font-bold text-gray-300 hover:text-white">✕</button>
+                </div>
+                <p className="pb-2 text-[11px] text-gray-300">A quick intro to get started with the drum machine. Visit <a href="https://nefas.tv" target="_blank" rel="noreferrer" className="text-green-300 hover:text-green-400">nefas.tv</a> for more info.</p>
+                <ol className="list-decimal list-inside space-y-1 text-[11px] text-gray-200">
+                  <li>Press Play in the transport bar to start playback.</li>
+                  <li>Click + TRACK to add an instrument track.</li>
+                  <li>Toggle grid cells to program your pattern.</li>
+                  <li>Use the keyboard at the bottom for live input.</li>
+                  <li>Open Instrument Editor for sound shaping.</li>
+                </ol>
+                <div className="mt-3 text-right">
+                  <button onClick={() => setShowModal(false)} className="rounded-md bg-gray-700 px-2 py-1 text-[10px] font-bold text-gray-100 hover:bg-gray-600">Close</button>
+                </div>
+              </div>
+            </div>
+          )}
         </div>
       </div>
     </div>
