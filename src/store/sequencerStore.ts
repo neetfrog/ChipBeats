@@ -24,7 +24,8 @@ function getStepDuration(bpm: number, swing: number, step: number): number {
   const base = 60 / bpm / 4; // 16th note
   const clampedSwing = Math.max(0, Math.min(1, swing));
   const swingOffset = clampedSwing * base * 0.5;
-  return step % 2 === 1 ? base + swingOffset : base - swingOffset;
+  // Apply swing as long (delayed off-beat) on even steps and short on odd steps
+  return step % 2 === 0 ? base + swingOffset : base - swingOffset;
 }
 
 function _deepClonePatterns(patterns: Pattern[]): Pattern[] {
