@@ -768,3 +768,8 @@ export const useSequencerStore = create<Store>((set, get) => ({
     };
   },
 }));
+
+// ── Initialize audio settings from loaded state ─────────────────────────────
+const initialState = useSequencerStore.getState();
+setMasterVolume(initialState.masterVolume);
+setCompressorEnabled(initialState.masterCompressor);
