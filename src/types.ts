@@ -1,6 +1,6 @@
 export type WaveShape = 'square' | 'sawtooth' | 'triangle' | 'sine' | 'noise' | 'pulse';
 export type ThemeMode = 'retro' | 'dark' | 'high-contrast';
-export type SoundPack = 'default' | 'ambient' | 'chiptune' | 'synthwave' | 'lo-fi' | 'harsh';
+export type SoundPack = 'default' | 'ambient' | 'chiptune' | 'synthwave' | 'lo-fi' | 'hiphop';
 
 export type InstrumentType =
   | 'kick' | 'snare' | 'hihat' | 'openhat' | 'clap'

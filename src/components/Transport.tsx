@@ -166,7 +166,7 @@ export default function Transport() {
           <option value="chiptune">🎮 Chiptune</option>
           <option value="synthwave">🌅 Synthwave</option>
           <option value="lo-fi">📻 Lo-Fi</option>
-          <option value="harsh">⚡ Harsh</option>
+          <option value="hiphop">🎧 Hip-Hop</option>
         </select>
 
         {/* Pattern Preset selector */}

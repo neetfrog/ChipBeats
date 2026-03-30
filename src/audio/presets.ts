@@ -307,32 +307,32 @@ export function getSoundPackAdjustments(soundPack: string): Record<string, Parti
   switch(soundPack) {
     case 'ambient':
       return {
-        kick: { frequency: 180, freqEnd: 40, decay: 0.45, sustain: 0.05, release: 0.05, volume: 0.75, reverbMix: 0.2, bitCrush: 16, distortion: 0 },
-        snare: { filterFreq: 2000, decay: 0.22, sustain: 0.08, reverbMix: 0.25, volume: 0.65, bitCrush: 16, distortion: 0 },
-        hihat: { filterFreq: 8800, decay: 0.08, sustain: 0.05, reverbMix: 0.15, volume: 0.45, bitCrush: 16, distortion: 0 },
-        openhat: { decay: 0.35, sustain: 0.1, reverbMix: 0.2, volume: 0.5, bitCrush: 16, distortion: 0 },
-        clap: { decay: 0.16, sustain: 0.06, reverbMix: 0.3, volume: 0.55, bitCrush: 16, distortion: 0 },
-        tom: { decay: 0.25, sustain: 0.05, reverbMix: 0.15, volume: 0.7, bitCrush: 16, distortion: 0 },
-        bass: { frequency: 50, attack: 0.003, decay: 0.2, sustain: 0.35, release: 0.1, filterFreq: 700, reverbMix: 0.15, delayMix: 0.08, volume: 0.78, bitCrush: 16, distortion: 0 },
-        lead: { attack: 0.008, decay: 0.15, sustain: 0.5, release: 0.15, reverbMix: 0.2, bitCrush: 16, distortion: 0 },
-        chord: { frequency: 220, attack: 0.05, decay: 0.3, sustain: 0.6, reverbMix: 0.3, volume: 0.6, bitCrush: 16, distortion: 0 },
-        blip: { decay: 0.08, reverbMix: 0.1, volume: 0.6, bitCrush: 16, distortion: 0 },
-        synth: { attack: 0.01, decay: 0.2, sustain: 0.6, reverbMix: 0.25, delayMix: 0.1, bitCrush: 16, distortion: 0 },
-        noise: { decay: 0.15, sustain: 0.08, reverbMix: 0.15, volume: 0.45, bitCrush: 16, distortion: 0 },
+        kick: { wave: 'sine', frequency: 170, freqEnd: 50, attack: 0.008, decay: 0.45, sustain: 0.2, release: 0.2, filterType: 'lowpass', filterFreq: 900, reverbMix: 0.45, delayMix: 0.24, volume: 0.72 },
+        snare: { wave: 'noise', attack: 0.002, decay: 0.26, sustain: 0.08, release: 0.1, filterType: 'bandpass', filterFreq: 2200, reverbMix: 0.46, delayMix: 0.22, volume: 0.58 },
+        hihat: { wave: 'noise', attack: 0.0005, decay: 0.08, sustain: 0, release: 0.04, filterType: 'highpass', filterFreq: 9800, reverbMix: 0.37, delayMix: 0.12, volume: 0.42 },
+        openhat: { wave: 'noise', attack: 0.0005, decay: 0.34, sustain: 0.1, release: 0.2, filterType: 'highpass', filterFreq: 8200, reverbMix: 0.35, delayMix: 0.15, volume: 0.48 },
+        clap: { wave: 'noise', attack: 0.0025, decay: 0.23, sustain: 0.06, release: 0.12, filterType: 'bandpass', filterFreq: 3000, reverbMix: 0.4, delayMix: 0.18, volume: 0.54 },
+        tom: { wave: 'square', attack: 0.002, decay: 0.26, sustain: 0.06, release: 0.18, filterType: 'lowpass', filterFreq: 750, reverbMix: 0.3, delayMix: 0.12, volume: 0.66 },
+        bass: { wave: 'sawtooth', frequency: 50, attack: 0.008, decay: 0.5, sustain: 0.4, release: 0.3, filterType: 'lowpass', filterFreq: 600, reverbMix: 0.32, delayMix: 0.12, volume: 0.8 },
+        lead: { wave: 'sine', attack: 0.024, decay: 0.22, sustain: 0.55, release: 0.28, reverbMix: 0.44, delayMix: 0.2, volume: 0.54 },
+        chord: { wave: 'triangle', attack: 0.04, decay: 0.35, sustain: 0.6, release: 0.3, reverbMix: 0.5, delayMix: 0.22, filterType: 'lowpass', filterFreq: 800, volume: 0.6 },
+        blip: { wave: 'pulse', attack: 0.006, decay: 0.28, sustain: 0.2, release: 0.2, reverbMix: 0.35, delayMix: 0.15, volume: 0.5 },
+        synth: { wave: 'triangle', attack: 0.01, decay: 0.3, sustain: 0.5, release: 0.28, reverbMix: 0.42, delayMix: 0.23, filterType: 'lowpass', filterFreq: 850, volume: 0.76 },
+        noise: { wave: 'noise', attack: 0.0003, decay: 0.18, sustain: 0, release: 0.08, reverbMix: 0.44, delayMix: 0.18, volume: 0.46 },
       };
     case 'chiptune':
       return {
-        kick: { wave: 'sine', frequency: 130, freqEnd: 60, pitchSweepTime: 0.12, attack: 0.001, decay: 0.25, sustain: 0, release: 0.07, bitCrush: 8, distortion: 0.08, volume: 0.95, reverbMix: 0, delayMix: 0 },
-        snare: { wave: 'noise', filterType: 'bandpass', filterFreq: 2100, filterQ: 3, attack: 0.0008, decay: 0.14, sustain: 0, release: 0.06, bitCrush: 5, distortion: 0.12, volume: 0.8, reverbMix: 0, delayMix: 0 },
-        hihat: { wave: 'noise', filterType: 'highpass', filterFreq: 9500, attack: 0.0003, decay: 0.04, sustain: 0, release: 0.01, bitCrush: 3, distortion: 0.06, volume: 0.6, reverbMix: 0, delayMix: 0 },
-        openhat: { wave: 'noise', filterType: 'highpass', filterFreq: 9000, attack: 0.0004, decay: 0.16, sustain: 0, release: 0.06, bitCrush: 3, distortion: 0.05, volume: 0.54, reverbMix: 0, delayMix: 0 },
-        clap: { wave: 'noise', filterType: 'bandpass', filterFreq: 2800, attack: 0.001, decay: 0.12, sustain: 0, release: 0.08, bitCrush: 3, distortion: 0.1, volume: 0.68, reverbMix: 0, delayMix: 0 },
-        tom: { wave: 'square', frequency: 210, freqEnd: 70, pitchSweepTime: 0.06, attack: 0.001, decay: 0.18, sustain: 0, release: 0.08, bitCrush: 5, distortion: 0.1, volume: 0.72, reverbMix: 0, delayMix: 0 },
-        bass: { wave: 'square', frequency: 58, freqEnd: 58, attack: 0.001, decay: 0.12, sustain: 0.24, release: 0.08, filterType: 'lowpass', filterFreq: 720, filterQ: 3, bitCrush: 6, distortion: 0.18, volume: 0.88, reverbMix: 0, delayMix: 0 },
-        lead: { wave: 'square', frequency: 660, attack: 0.0015, decay: 0.06, sustain: 0.52, release: 0.09, bitCrush: 5, distortion: 0.18, vibratoRate: 8, vibratoDepth: 0.18, reverbMix: 0, delayMix: 0 },
-        blip: { wave: 'triangle', frequency: 880, attack: 0.001, decay: 0.06, sustain: 0, release: 0.03, bitCrush: 5, distortion: 0.12, volume: 0.8, reverbMix: 0, delayMix: 0 },
-        synth: { wave: 'square', frequency: 330, attack: 0.006, decay: 0.08, sustain: 0.65, release: 0.1, filterType: 'lowpass', filterFreq: 1900, filterQ: 2, bitCrush: 6, distortion: 0.2, volume: 0.75, reverbMix: 0, delayMix: 0 },
-        noise: { wave: 'noise', frequency: 11500, attack: 0.0004, decay: 0.1, sustain: 0, release: 0.02, bitCrush: 2, distortion: 0.1, volume: 0.63, reverbMix: 0, delayMix: 0 },
+        kick: { wave: 'sine', frequency: 140, freqEnd: 45, pitchSweepTime: 0.14, attack: 0.001, decay: 0.22, sustain: 0, release: 0.08, bitCrush: 12, distortion: 0.18, volume: 0.96, reverbMix: 0.02, delayMix: 0.01 },
+        snare: { wave: 'noise', filterType: 'bandpass', filterFreq: 2300, filterQ: 3.2, attack: 0.0007, decay: 0.14, sustain: 0, release: 0.06, bitCrush: 8, distortion: 0.16, volume: 0.74, reverbMix: 0, delayMix: 0 },
+        hihat: { wave: 'noise', filterType: 'highpass', filterFreq: 9800, attack: 0.0002, decay: 0.035, sustain: 0, release: 0.007, bitCrush: 7, distortion: 0.12, volume: 0.56, reverbMix: 0, delayMix: 0 },
+        openhat: { wave: 'noise', filterType: 'highpass', filterFreq: 9500, attack: 0.0003, decay: 0.14, sustain: 0, release: 0.055, bitCrush: 7, distortion: 0.1, volume: 0.48, reverbMix: 0, delayMix: 0 },
+        clap: { wave: 'noise', filterType: 'bandpass', filterFreq: 2800, attack: 0.0009, decay: 0.11, sustain: 0, release: 0.07, bitCrush: 6, distortion: 0.1, volume: 0.66, reverbMix: 0, delayMix: 0 },
+        tom: { wave: 'square', frequency: 224, freqEnd: 68, pitchSweepTime: 0.06, attack: 0.0009, decay: 0.15, sustain: 0, release: 0.07, bitCrush: 7, distortion: 0.12, volume: 0.74, reverbMix: 0, delayMix: 0 },
+        bass: { wave: 'square', frequency: 56, freqEnd: 56, attack: 0.0009, decay: 0.1, sustain: 0.24, release: 0.08, filterType: 'lowpass', filterFreq: 680, filterQ: 3.2, bitCrush: 10, distortion: 0.24, volume: 0.9, reverbMix: 0, delayMix: 0 },
+        lead: { wave: 'square', frequency: 680, attack: 0.0012, decay: 0.055, sustain: 0.5, release: 0.085, bitCrush: 6, distortion: 0.22, vibratoRate: 9, vibratoDepth: 0.2, reverbMix: 0, delayMix: 0.02 },
+        blip: { wave: 'triangle', frequency: 950, attack: 0.0008, decay: 0.055, sustain: 0, release: 0.03, bitCrush: 8, distortion: 0.18, volume: 0.84, reverbMix: 0, delayMix: 0 },
+        synth: { wave: 'square', frequency: 340, attack: 0.005, decay: 0.08, sustain: 0.68, release: 0.095, filterType: 'lowpass', filterFreq: 1750, filterQ: 2, bitCrush: 7, distortion: 0.22, volume: 0.77, reverbMix: 0, delayMix: 0 },
+        noise: { wave: 'noise', frequency: 11800, attack: 0.0003, decay: 0.08, sustain: 0, release: 0.025, bitCrush: 4, distortion: 0.13, volume: 0.66, reverbMix: 0, delayMix: 0 },
       };
 
     case 'synthwave':
@@ -365,24 +365,30 @@ export function getSoundPackAdjustments(soundPack: string): Record<string, Parti
         synth: { attack: 0.007, decay: 0.07, sustain: 0.7, bitCrush: 8, distortion: 0.2, reverbMix: 0.1, delayMix: 0.07 },
         noise: { decay: 0.11, bitCrush: 8, distortion: 0.16, reverbMix: 0.07, delayMix: 0.03 },
       };
-    case 'harsh':
+    case 'hiphop':
       return {
-        kick: { frequency: 220, freqEnd: 20, pitchSweepTime: 0.05, decay: 0.2, bitCrush: 4, distortion: 0.6, volume: 1, reverbMix: 0, delayMix: 0 },
-        snare: { filterFreq: 3000, filterQ: 3, decay: 0.15, bitCrush: 2, distortion: 0.55, reverbMix: 0, delayMix: 0 },
-        hihat: { filterFreq: 10000, decay: 0.04, bitCrush: 1, distortion: 0.5, volume: 0.7, reverbMix: 0, delayMix: 0 },
-        openhat: { decay: 0.2, bitCrush: 1, distortion: 0.45, reverbMix: 0, delayMix: 0 },
-        clap: { decay: 0.1, bitCrush: 2, distortion: 0.5, reverbMix: 0, delayMix: 0 },
-        tom: { frequency: 250, freqEnd: 70, decay: 0.18, bitCrush: 3, distortion: 0.4, reverbMix: 0, delayMix: 0 },
-        bass: { frequency: 70, attack: 0.0005, decay: 0.1, sustain: 0.15, filterFreq: 1000, bitCrush: 4, distortion: 0.5, reverbMix: 0, delayMix: 0 },
-        lead: { attack: 0.001, decay: 0.06, sustain: 0.45, bitCrush: 3, distortion: 0.55, vibratoRate: 8, vibratoDepth: 0.4, reverbMix: 0, delayMix: 0 },
-        chord: { attack: 0.03, decay: 0.15, sustain: 0.5, bitCrush: 3, distortion: 0.48, reverbMix: 0, delayMix: 0 },
-        blip: { bitCrush: 2, distortion: 0.52, volume: 0.8, reverbMix: 0, delayMix: 0 },
-        synth: { attack: 0.005, decay: 0.05, sustain: 0.65, bitCrush: 3, distortion: 0.58, vibratoRate: 8, vibratoDepth: 0.35, reverbMix: 0, delayMix: 0 },
-        noise: { decay: 0.08, bitCrush: 1, distortion: 0.55, reverbMix: 0, delayMix: 0 },
+        kick: { frequency: 175, freqEnd: 40, pitchSweepTime: 0.09, decay: 0.32, bitCrush: 6, distortion: 0.34, volume: 0.95, reverbMix: 0.08, delayMix: 0.06 },
+        snare: { filterFreq: 2300, filterQ: 2.2, decay: 0.19, bitCrush: 5, distortion: 0.26, reverbMix: 0.15, delayMix: 0.08 },
+        hihat: { filterFreq: 8900, decay: 0.045, bitCrush: 4, distortion: 0.16, volume: 0.58, reverbMix: 0.1, delayMix: 0.05 },
+        openhat: { decay: 0.25, bitCrush: 4, distortion: 0.12, volume: 0.5, reverbMix: 0.08, delayMix: 0.04 },
+        clap: { decay: 0.13, bitCrush: 5, distortion: 0.18, reverbMix: 0.12, delayMix: 0.05, volume: 0.85 },
+        tom: { frequency: 220, freqEnd: 72, decay: 0.2, bitCrush: 4, distortion: 0.2, reverbMix: 0.1, delayMix: 0.05 },
+        bass: { frequency: 55, attack: 0.002, decay: 0.14, sustain: 0.25, filterFreq: 850, filterEnvAmt: 0.55, bitCrush: 6, distortion: 0.18, reverbMix: 0.08, delayMix: 0.06 },
+        lead: { wave: 'pulse', frequency: 200, attack: 0.004, decay: 0.08, sustain: 0.5, release: 0.15, bitCrush: 10, distortion: 0.24, reverbMix: 0.12, delayMix: 0.1 },
+        chord: { wave: 'sawtooth', frequency: 210, attack: 0.05, decay: 0.22, sustain: 0.55, release: 0.12, reverbMix: 0.15, delayMix: 0.1 },
+        blip: { wave: 'triangle', frequency: 500, attack: 0.004, decay: 0.08, sustain: 0.2, release: 0.1, bitCrush: 5, distortion: 0.16, volume: 0.75 },
+        synth: { frequency: 330, attack: 0.008, decay: 0.1, sustain: 0.65, release: 0.12, reverbMix: 0.15, delayMix: 0.08 },
+        noise: { decay: 0.12, bitCrush: 6, distortion: 0.2, reverbMix: 0.1, delayMix: 0.05 },
       };
     default:
       return {};  // 'default' returns no adjustments
   }
+}
+
+// ─── Preset instrument set (full replacement) ───────────────────────────────
+export function getPresetInstruments(presetId: string): InstrumentParams[] {
+  const adjustments = getPresetInstrumentAdjustments(presetId);
+  return DEFAULT_INSTRUMENTS.map(inst => ({ ...inst, ...(adjustments[inst.id] ?? {}) }));
 }
 
 // ─── Apply Sound Pack ────────────────────────────────────────────────────────

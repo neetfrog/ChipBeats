@@ -1,6 +1,6 @@
 import { create } from 'zustand';
 import { SequencerState, InstrumentParams, Pattern, Step } from '../types';
-import { DEFAULT_INSTRUMENTS, defaultPattern, makePresetPatterns, makeStep, applySoundPack } from '../audio/presets';
+import { DEFAULT_INSTRUMENTS, defaultPattern, makePresetPatterns, makeStep, applySoundPack, getPresetInstruments } from '../audio/presets';
 import {
   playInstrument, getAudioContext, setMasterVolume,
   setCompressorEnabled, getAnalyser,
@@ -284,14 +284,9 @@ export const useSequencerStore = create<Store>((set, get) => ({
 
     // While paused: switch instantly
     const selectedPattern = s.patterns.find(p => p.id === id);
-    if (selectedPattern && selectedPattern.id.startsWith('preset_')) {
-      const adjustedInsts = applyPresetInstrumentAdjustments(s.instruments, selectedPattern.id);
-      set({
-        currentPatternId: id,
-        currentStep: -1,
-        queuedPatternId: null,
-        instruments: adjustedInsts,
-      });
+    if (selectedPattern) {
+      // Pattern presets should only fill the pattern (tracks/steps), not alter instruments.
+      set({ currentPatternId: id, currentStep: -1, queuedPatternId: null });
     } else {
       set({ currentPatternId: id, currentStep: -1, queuedPatternId: null });
     }
@@ -661,8 +656,7 @@ export const useSequencerStore = create<Store>((set, get) => ({
   },
 
   setSoundPack: (pack) => {
-    const s = get();
-    const adjustedInstruments = applySoundPack(s.baseSoundParams, pack);
+    const adjustedInstruments = applySoundPack(DEFAULT_INSTRUMENTS.map(i => ({ ...i })), pack);
     set({ currentSoundPack: pack, instruments: adjustedInstruments });
     get().saveToStorage();
   },
