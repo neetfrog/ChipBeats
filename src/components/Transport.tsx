@@ -45,7 +45,6 @@ export default function Transport() {
         e.preventDefault();
         isPlaying ? pause() : play();
       }
-      if (e.code === 'Escape') stop();
       if (e.code === 'KeyZ' && (e.ctrlKey || e.metaKey) && !e.shiftKey) { e.preventDefault(); undo(); }
       if (e.code === 'KeyZ' && (e.ctrlKey || e.metaKey) && e.shiftKey) { e.preventDefault(); redo(); }
       if (e.code === 'KeyY' && (e.ctrlKey || e.metaKey)) { e.preventDefault(); redo(); }
@@ -80,14 +79,14 @@ export default function Transport() {
   };
 
   return (
-    <div className="flex flex-col gap-2.5">
+    <div className="flex flex-col gap-1.5">
 
       {/* ── Row 1: Logo + Transport + BPM + Volume ── */}
-      <div className="flex items-center gap-2 flex-wrap">
+      <div className="flex items-center gap-1 flex-wrap">
 
         {/* Logo */}
-        <div className="flex items-baseline gap-0.5 mr-1">
-          <span className="text-xl font-black tracking-tight text-green-400" style={{ textShadow: '0 0 12px #4ade80aa' }}>
+        <div className="flex items-baseline gap-1 mr-1">
+          <span className="text-lg font-black tracking-tight text-green-400" style={{ textShadow: '0 0 10px #4ade80aa' }}>
             CHIP
           </span>
           <span className="text-xl font-black tracking-tight text-purple-400" style={{ textShadow: '0 0 12px #a78bfaaa' }}>
@@ -95,11 +94,11 @@ export default function Transport() {
           </span>
         </div>
 
-        {/* Play / Stop */}
+        {/* Play / Pause */}
         <div className="flex gap-1.5">
           <button
             onClick={isPlaying ? pause : play}
-            className={`px-4 py-2 rounded-xl font-bold text-[11px] tracking-widest transition-all active:scale-95 ${
+            className={`px-3 py-1.5 rounded-lg font-bold text-[10px] tracking-widest transition-all active:scale-95 ${
               isPlaying
                 ? 'bg-yellow-400 text-black shadow-lg shadow-yellow-400/30'
                 : 'bg-green-500 text-black shadow-lg shadow-green-400/30 hover:bg-green-400'
@@ -107,16 +106,11 @@ export default function Transport() {
           >
             {isPlaying ? '⏸ PAUSE' : '▶ PLAY'}
           </button>
-          <button
-            onClick={stop}
-            className="px-3 py-2 rounded-xl font-bold text-[11px] bg-gray-800 text-gray-300 hover:bg-gray-700 transition-all active:scale-95"
-            title="Stop (Esc)"
-          >⏹</button>
         </div>
 
         {/* BPM */}
         <div
-          className="flex items-center gap-1.5 bg-gray-800 rounded-xl px-3 py-1.5 cursor-ns-resize"
+          className="flex items-center gap-1.5 bg-gray-800 rounded-lg px-2 py-1 cursor-ns-resize"
           onWheel={handleBpmWheel}
         >
           <button
@@ -132,7 +126,6 @@ export default function Transport() {
               onChange={e => setBpm(Number(e.target.value))}
               className="w-full bg-transparent text-green-400 font-mono font-bold text-lg leading-none text-center outline-none [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
             />
-            <div className="text-gray-600 text-[8px] uppercase tracking-[0.15em]">BPM</div>
           </div>
           <button
             onClick={() => setBpm(Math.min(BPM_MAX, bpm + 1))}
@@ -143,13 +136,13 @@ export default function Transport() {
         {/* Tap tempo */}
         <button
           onClick={tapTempo}
-          className="px-3 py-2 rounded-xl bg-gray-800 text-gray-400 hover:text-green-400 hover:bg-gray-700 font-bold text-[10px] tracking-widest transition-all active:scale-90 active:bg-gray-600"
+          className="px-2 py-1 rounded-lg bg-gray-800 text-gray-400 hover:text-green-400 hover:bg-gray-700 font-bold text-[9px] tracking-widest transition-all active:scale-90 active:bg-gray-600"
           title="Tap Tempo (T)"
         >TAP</button>
 
         {/* Volume */}
-        <div className="flex items-center gap-2 bg-gray-800 rounded-xl px-3 py-1.5">
-          <span className="text-gray-500 text-[9px] uppercase tracking-widest">VOL</span>
+        <div className="flex items-center gap-1.5 bg-gray-800 rounded-lg px-2 py-1">
+          <span className="text-gray-400 text-[8px] uppercase tracking-widest">VOL</span>
           <input
             type="range" min={0} max={1} step={0.01} value={masterVolume}
             onChange={e => setMasterVolume(Number(e.target.value))}
@@ -163,7 +156,7 @@ export default function Transport() {
           <button
             onClick={undo}
             disabled={past.length === 0}
-            className="px-2.5 py-2 rounded-lg text-[10px] font-bold bg-gray-800 text-gray-400 hover:text-white disabled:opacity-25 transition-all active:scale-90"
+            className="px-2 py-1 rounded-lg text-[9px] font-bold bg-gray-800 text-gray-400 hover:text-white disabled:opacity-25 transition-all active:scale-90"
             title="Undo (Ctrl+Z)"
           >↩</button>
           <button
@@ -184,8 +177,8 @@ export default function Transport() {
 
       {/* ── Settings panel ── */}
       {showSettings && (
-        <div className="flex flex-wrap gap-2 items-center py-2 px-3 rounded-xl bg-gray-800/50 border border-gray-700/50">
-          <span className="text-[9px] uppercase tracking-widest text-gray-500">Settings</span>
+        <div className="flex flex-wrap gap-1 items-center py-1.5 px-2 rounded-lg bg-gray-800/50 border border-gray-700/50">
+          <span className="text-[8px] uppercase tracking-widest text-gray-500">Settings</span>
           <label className="flex items-center gap-1.5 cursor-pointer">
             <input
               type="checkbox"
@@ -263,8 +256,8 @@ export default function Transport() {
       )}
 
       {/* ── Row 2: Patterns + Steps + Swing ── */}
-      <div className="flex items-center gap-2 flex-wrap">
-        <span className="text-gray-600 text-[9px] uppercase tracking-widest">PAT:</span>
+      <div className="flex items-center gap-1 flex-wrap">
+        <span className="text-gray-500 text-[8px] uppercase tracking-widest">PAT:</span>
 
         {/* Pattern buttons */}
         <div className="flex gap-1 flex-wrap flex-1 min-w-0">
@@ -286,7 +279,7 @@ export default function Transport() {
                 <button
                   onClick={() => setCurrentPattern(p.id)}
                   onDoubleClick={() => startRename(p.id, p.name)}
-                  className={`px-2.5 py-1.5 rounded-lg text-[10px] font-bold tracking-wide transition-all active:scale-95 ${
+                  className={`px-2 py-1 rounded-lg text-[9px] font-bold tracking-wide transition-all active:scale-95 ${
                     p.id === currentPatternId
                       ? 'bg-purple-600 text-white shadow-lg shadow-purple-500/25'
                       : 'bg-gray-800 text-gray-400 hover:bg-gray-700 hover:text-white'
@@ -318,12 +311,12 @@ export default function Transport() {
 
         {/* Step count */}
         <div className="flex items-center gap-1">
-          <span className="text-gray-600 text-[9px] uppercase tracking-widest hidden sm:inline">Steps:</span>
+          <span className="text-gray-500 text-[8px] uppercase tracking-widest hidden sm:inline">Steps:</span>
           {[8, 16, 32].map(n => (
             <button
               key={n}
               onClick={() => setStepCount(n)}
-              className={`w-8 py-1 rounded-lg text-[10px] font-bold transition-all active:scale-95 ${
+              className={`w-7 py-1 rounded-lg text-[9px] font-bold transition-all active:scale-95 ${
                 currentPattern?.stepCount === n
                   ? 'bg-green-600 text-white'
                   : 'bg-gray-800 text-gray-500 hover:bg-gray-700 hover:text-white'
@@ -333,28 +326,20 @@ export default function Transport() {
         </div>
 
         {/* Swing */}
-        <div className="flex items-center gap-1.5 bg-gray-800 rounded-xl px-2.5 py-1.5">
-          <span className="text-gray-500 text-[9px] uppercase tracking-widest">Swing</span>
+        <div className="flex items-center gap-1 bg-gray-800 rounded-lg px-2 py-1">
+          <span className="text-gray-400 text-[8px] uppercase tracking-widest">Swing</span>
           <input
-            type="range" min={0} max={0.5} step={0.01}
+            type="range" min={0} max={1} step={0.01}
             value={currentPattern?.swing ?? 0}
             onChange={e => setSwing(Number(e.target.value))}
             className="w-14 sm:w-20 accent-yellow-400"
           />
-          <span className="text-yellow-400 text-[9px] font-mono w-7">
-            {Math.round((currentPattern?.swing ?? 0) * 200)}%
+          <span className="text-yellow-400 text-[9px] font-mono w-8">
+            {Math.round((currentPattern?.swing ?? 0) * 100)}%
           </span>
         </div>
 
-        {/* Editor toggle */}
-        <button
-          onClick={() => setShowEditor(!showEditor)}
-          className={`px-3 py-1.5 rounded-xl text-[10px] font-bold uppercase tracking-widest transition-all active:scale-95 ${
-            showEditor
-              ? 'bg-purple-700 text-white shadow-lg shadow-purple-900/40'
-              : 'bg-gray-800 text-gray-400 hover:bg-gray-700 hover:text-white'
-          }`}
-        >🎛 {showEditor ? 'Close' : 'Edit'}</button>
+        {/* Editor toggle removed from header (compact mode) */}
       </div>
     </div>
   );

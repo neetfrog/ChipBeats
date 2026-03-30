@@ -81,13 +81,13 @@ export default function App() {
             borderBottom: `1px solid ${theme.colors.border}`,
           }}
         >
-          <div className="max-w-5xl mx-auto px-3 py-2.5">
+          <div className="max-w-5xl mx-auto px-2 py-1.5">
             <Transport />
           </div>
         </div>
 
         {/* ── Body ── */}
-        <div className="flex-1 max-w-5xl mx-auto w-full px-3 py-3 space-y-3 pb-8">
+        <div className="flex-1 max-w-5xl mx-auto w-full px-2 py-2 space-y-2.5 pb-8">
 
           {/* ── Visualizer ── */}
           {visualizerVisible && (
@@ -125,16 +125,16 @@ export default function App() {
                 style={{ background: 'rgba(10,14,25,0.95)' }}
               >
                 {/* Grid header */}
-                <div className="flex items-center justify-between px-3 pt-2.5 pb-2 border-b border-gray-800/60">
-                  <div className="flex items-center gap-2">
+                <div className="flex items-center justify-between px-2 py-1.5 border-b border-gray-800/60">
+                  <div className="flex items-center gap-1.5">
                     <div className={`w-2 h-2 rounded-full transition-colors ${isPlaying ? 'bg-green-400' : 'bg-gray-700'}`}
                       style={isPlaying ? { boxShadow: '0 0 8px #4ade80' } : undefined}
                     />
-                    <h2 className="text-[10px] font-bold uppercase tracking-[0.18em] text-gray-500">
+                    <h2 className="text-[9px] font-bold uppercase tracking-[0.18em] text-gray-500">
                       Sequencer
                     </h2>
                   </div>
-                  <div className="flex items-center gap-2">
+                  <div className="flex items-center gap-1.5">
                     {/* Add track shortcut */}
                     <button
                       onClick={() => { setShowEditor(true); setActiveEditorTab('add'); }}
@@ -157,11 +157,11 @@ export default function App() {
             {/* ── Instrument Editor panel ── */}
             {showEditor && (
               <div className="lg:w-80 xl:w-96 shrink-0 animate-slide-in">
-                <div className="flex items-center justify-between mb-1.5">
-                  <span className="text-[9px] uppercase tracking-widest text-gray-600">Instrument Editor</span>
+                <div className="flex items-center justify-between mb-1">
+                  <span className="text-[8px] uppercase tracking-widest text-gray-600">Instrument Editor</span>
                   <button
                     onClick={() => { setShowEditor(false); setEditingInstrument(null); }}
-                    className="text-gray-600 hover:text-gray-400 text-sm transition-colors"
+                    className="text-gray-500 hover:text-gray-300 text-sm transition-colors"
                   >✕</button>
                 </div>
                 <Suspense fallback={<LoadingPlaceholder />}>

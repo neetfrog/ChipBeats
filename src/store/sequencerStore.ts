@@ -22,7 +22,8 @@ let internalStep = 0;
 
 function getStepDuration(bpm: number, swing: number, step: number): number {
   const base = 60 / bpm / 4; // 16th note
-  const swingOffset = swing * base * 0.45;
+  const clampedSwing = Math.max(0, Math.min(1, swing));
+  const swingOffset = clampedSwing * base * 0.5;
   return step % 2 === 1 ? base + swingOffset : base - swingOffset;
 }
 
@@ -334,9 +335,11 @@ export const useSequencerStore = create<Store>((set, get) => ({
   },
 
   setSwing: (swing) => {
+    get()._snapshot();
     set(s => ({
       patterns: s.patterns.map(p => p.id === s.currentPatternId ? { ...p, swing } : p),
     }));
+    get().saveToStorage();
   },
 
   // ── Steps ─────────────────────────────────────────────────────────────────

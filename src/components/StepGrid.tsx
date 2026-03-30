@@ -140,7 +140,7 @@ export default function StepGrid() {
   if (!pattern) return null;
 
   return (
-    <div className="flex flex-col gap-0.5 sm:gap-1" onPointerDown={() => setShowTrackMenu(null)}>
+    <div className="flex flex-col gap-0.5 sm:gap-1">
 
       {/* ── Backdrop ── */}
       {(popup || showTrackMenu !== null) && (
@@ -359,7 +359,7 @@ export default function StepGrid() {
             </div>
 
             {/* Track menu button */}
-            <div className="relative w-8 sm:w-10 shrink-0 z-30" onPointerDown={e => e.stopPropagation()}>
+            <div className="relative w-8 sm:w-10 shrink-0" onPointerDown={e => e.stopPropagation()}>
               <button
                 onClick={e => { e.stopPropagation(); setShowTrackMenu(showTrackMenu === ti ? null : ti); }}
                 className="w-8 sm:w-10 h-8 sm:h-9 flex items-center justify-center text-gray-600 hover:text-gray-300 rounded transition-colors text-lg"
@@ -369,6 +369,8 @@ export default function StepGrid() {
                 <div
                   className="absolute right-0 top-10 z-50 rounded-xl shadow-2xl py-1 min-w-[164px]"
                   style={{ background: '#1a2035', border: `1px solid ${inst.color}44` }}
+                  onPointerDown={e => e.stopPropagation()}
+                  onPointerUp={e => e.stopPropagation()}
                   onClick={e => e.stopPropagation()}
                 >
                   {/* Track info */}
@@ -435,6 +437,8 @@ function MenuItem({ children, onClick, color }: {
     <button
       className="w-full text-left px-3 py-1.5 text-[10px] text-gray-300 hover:bg-white/5 active:bg-white/10 transition-colors font-mono"
       style={color ? { color } : undefined}
+      onPointerDown={e => e.stopPropagation()}
+      onPointerUp={e => e.stopPropagation()}
       onClick={onClick}
     >{children}</button>
   );
