@@ -119,9 +119,10 @@ interface KnobProps {
   onChange: (v: number) => void;
   color?: string;
   fullWidth?: boolean;
+  defaultValue?: number;
 }
 
-function Knob({ label, value, min, max, step = 0.01, decimals = 2, unit = '', onChange, color = '#8b5cf6', fullWidth }: KnobProps) {
+function Knob({ label, value, min, max, step = 0.01, decimals = 2, unit = '', onChange, color = '#8b5cf6', fullWidth, defaultValue }: KnobProps) {
   const dragRef = useRef<{ startY: number; startVal: number } | null>(null);
 
   const handlePointerDown = useCallback((e: React.PointerEvent) => {
@@ -143,6 +144,12 @@ function Knob({ label, value, min, max, step = 0.01, decimals = 2, unit = '', on
     dragRef.current = null;
   }, []);
 
+  const handleDoubleClick = useCallback(() => {
+    if (defaultValue !== undefined) {
+      onChange(defaultValue);
+    }
+  }, [defaultValue, onChange]);
+
   // Arc rendering
   const r = 18, cx = 22, cy = 22;
   const startAngle = 220 * (Math.PI / 180);
@@ -159,6 +166,8 @@ function Knob({ label, value, min, max, step = 0.01, decimals = 2, unit = '', on
       onPointerDown={handlePointerDown}
       onPointerMove={handlePointerMove}
       onPointerUp={handlePointerUp}
+      onDoubleClick={handleDoubleClick}
+      title={defaultValue !== undefined ? `Double-click to reset to ${defaultValue.toFixed(decimals)}` : undefined}
     >
       <svg width={44} height={44} viewBox="0 0 44 44">
         <path d={bgArc} fill="none" stroke="#374151" strokeWidth="3" strokeLinecap="round" />
@@ -218,9 +227,25 @@ export default function InstrumentEditor() {
   const inst = instruments.find(i => i.id === editingInstrumentId);
   const [newInstBase, setNewInstBase] = useState<InstrumentType>('blip');
 
+  // Get the default instrument for this type
+  const defaultInst = inst ? DEFAULT_INSTRUMENTS.find(d => d.type === inst.type) : null;
+
   const upd = (k: keyof InstrumentParams, v: unknown) => {
     if (!inst) return;
     updateInstrument(inst.id, { [k]: v } as Partial<InstrumentParams>);
+  };
+
+  const handleResetToDefault = () => {
+    if (!inst || !defaultInst) return;
+    if (!window.confirm(`Reset "${inst.name}" to default settings?`)) return;
+    // Update all instrument params to default
+    const updates: Partial<InstrumentParams> = {};
+    (Object.keys(defaultInst) as (keyof InstrumentParams)[]).forEach(key => {
+      if (key !== 'id' && key !== 'name' && key !== 'color') {
+        updates[key] = defaultInst[key];
+      }
+    });
+    updateInstrument(inst.id, updates);
   };
 
   const handleAddPreset = () => {
@@ -317,6 +342,11 @@ export default function InstrumentEditor() {
                 title="Preview"
               >▶</button>
               <button
+                onClick={handleResetToDefault}
+                className="px-3 py-2 rounded-lg bg-orange-950 hover:bg-orange-800 text-orange-400 text-sm font-bold transition-all"
+                title="Reset to default settings"
+              >⟲</button>
+              <button
                 onClick={() => {
                   if (window.confirm(`Remove "${inst.name}"?`)) {
                     removeInstrument(inst.id);
@@ -376,19 +406,19 @@ export default function InstrumentEditor() {
                 </div>
               </div>
               {inst.wave === 'pulse' && (
-                <Knob label="Pulse W" value={inst.pulseWidth} min={0.05} max={0.95} step={0.01} decimals={2} onChange={v => upd('pulseWidth', v)} color={inst.color} />
+                <Knob label="Pulse W" value={inst.pulseWidth} min={0.05} max={0.95} step={0.01} decimals={2} onChange={v => upd('pulseWidth', v)} color={inst.color} defaultValue={defaultInst?.pulseWidth} />
               )}
-              <Knob label="Freq" value={inst.frequency} min={20} max={8000} step={1} decimals={0} unit="Hz" onChange={v => upd('frequency', v)} color={inst.color} />
-              <Knob label="Freq End" value={inst.freqEnd} min={20} max={8000} step={1} decimals={0} unit="Hz" onChange={v => upd('freqEnd', v)} color={inst.color} />
-              <Knob label="Sweep" value={inst.pitchSweepTime} min={0.001} max={2} step={0.001} decimals={3} unit="s" onChange={v => upd('pitchSweepTime', v)} color={inst.color} />
+              <Knob label="Freq" value={inst.frequency} min={20} max={8000} step={1} decimals={0} unit="Hz" onChange={v => upd('frequency', v)} color={inst.color} defaultValue={defaultInst?.frequency} />
+              <Knob label="Freq End" value={inst.freqEnd} min={20} max={8000} step={1} decimals={0} unit="Hz" onChange={v => upd('freqEnd', v)} color={inst.color} defaultValue={defaultInst?.freqEnd} />
+              <Knob label="Sweep" value={inst.pitchSweepTime} min={0.001} max={2} step={0.001} decimals={3} unit="s" onChange={v => upd('pitchSweepTime', v)} color={inst.color} defaultValue={defaultInst?.pitchSweepTime} />
             </Section>
 
             {/* ── Envelope ── */}
             <Section title="Envelope" color="#22c55e">
-              <Knob label="Attack" value={inst.attack} min={0.001} max={2} step={0.001} decimals={3} unit="s" onChange={v => upd('attack', v)} color="#22c55e" />
-              <Knob label="Decay" value={inst.decay} min={0.001} max={3} step={0.001} decimals={3} unit="s" onChange={v => upd('decay', v)} color="#22c55e" />
-              <Knob label="Sustain" value={inst.sustain} min={0} max={1} step={0.01} decimals={2} onChange={v => upd('sustain', v)} color="#22c55e" />
-              <Knob label="Release" value={inst.release} min={0.001} max={3} step={0.001} decimals={3} unit="s" onChange={v => upd('release', v)} color="#22c55e" />
+              <Knob label="Attack" value={inst.attack} min={0.001} max={2} step={0.001} decimals={3} unit="s" onChange={v => upd('attack', v)} color="#22c55e" defaultValue={defaultInst?.attack} />
+              <Knob label="Decay" value={inst.decay} min={0.001} max={3} step={0.001} decimals={3} unit="s" onChange={v => upd('decay', v)} color="#22c55e" defaultValue={defaultInst?.decay} />
+              <Knob label="Sustain" value={inst.sustain} min={0} max={1} step={0.01} decimals={2} onChange={v => upd('sustain', v)} color="#22c55e" defaultValue={defaultInst?.sustain} />
+              <Knob label="Release" value={inst.release} min={0.001} max={3} step={0.001} decimals={3} unit="s" onChange={v => upd('release', v)} color="#22c55e" defaultValue={defaultInst?.release} />
             </Section>
 
             {/* ── Filter ── */}
@@ -409,25 +439,25 @@ export default function InstrumentEditor() {
                   ))}
                 </div>
               </div>
-              <Knob label="Cutoff" value={inst.filterFreq} min={20} max={18000} step={10} decimals={0} unit="Hz" onChange={v => upd('filterFreq', v)} color="#06b6d4" />
-              <Knob label="Resonance" value={inst.filterQ} min={0.1} max={20} step={0.1} decimals={1} onChange={v => upd('filterQ', v)} color="#06b6d4" />
-              <Knob label="Env Amt" value={inst.filterEnvAmt} min={-1} max={1} step={0.01} decimals={2} onChange={v => upd('filterEnvAmt', v)} color="#06b6d4" />
+              <Knob label="Cutoff" value={inst.filterFreq} min={20} max={18000} step={10} decimals={0} unit="Hz" onChange={v => upd('filterFreq', v)} color="#06b6d4" defaultValue={defaultInst?.filterFreq} />
+              <Knob label="Resonance" value={inst.filterQ} min={0.1} max={20} step={0.1} decimals={1} onChange={v => upd('filterQ', v)} color="#06b6d4" defaultValue={defaultInst?.filterQ} />
+              <Knob label="Env Amt" value={inst.filterEnvAmt} min={-1} max={1} step={0.01} decimals={2} onChange={v => upd('filterEnvAmt', v)} color="#06b6d4" defaultValue={defaultInst?.filterEnvAmt} />
             </Section>
 
             {/* ── FX ── */}
             <Section title="FX" color="#f97316" defaultOpen={false}>
-              <Knob label="BitCrush" value={inst.bitCrush} min={1} max={16} step={1} decimals={0} unit="b" onChange={v => upd('bitCrush', v)} color="#f97316" />
-              <Knob label="Distort" value={inst.distortion} min={0} max={1} step={0.01} decimals={2} onChange={v => upd('distortion', v)} color="#f97316" />
-              <Knob label="Volume" value={inst.volume} min={0} max={1} step={0.01} decimals={2} onChange={v => upd('volume', v)} color="#f97316" />
-              <Knob label="Pan" value={inst.pan} min={-1} max={1} step={0.01} decimals={2} onChange={v => upd('pan', v)} color="#f97316" />
+              <Knob label="BitCrush" value={inst.bitCrush} min={1} max={16} step={1} decimals={0} unit="b" onChange={v => upd('bitCrush', v)} color="#f97316" defaultValue={defaultInst?.bitCrush} />
+              <Knob label="Distort" value={inst.distortion} min={0} max={1} step={0.01} decimals={2} onChange={v => upd('distortion', v)} color="#f97316" defaultValue={defaultInst?.distortion} />
+              <Knob label="Volume" value={inst.volume} min={0} max={1} step={0.01} decimals={2} onChange={v => upd('volume', v)} color="#f97316" defaultValue={defaultInst?.volume} />
+              <Knob label="Pan" value={inst.pan} min={-1} max={1} step={0.01} decimals={2} onChange={v => upd('pan', v)} color="#f97316" defaultValue={defaultInst?.pan} />
             </Section>
 
             {/* ── Reverb / Delay ── */}
             <Section title="Space" color="#a78bfa" defaultOpen={false}>
-              <Knob label="Reverb" value={inst.reverbMix} min={0} max={1} step={0.01} decimals={2} onChange={v => upd('reverbMix', v)} color="#a78bfa" />
-              <Knob label="Delay" value={inst.delayMix} min={0} max={1} step={0.01} decimals={2} onChange={v => upd('delayMix', v)} color="#a78bfa" />
-              <Knob label="Dly Time" value={inst.delayTime} min={0.01} max={1} step={0.01} decimals={2} unit="s" onChange={v => upd('delayTime', v)} color="#a78bfa" />
-              <Knob label="Dly Fbk" value={inst.delayFeedback} min={0} max={0.92} step={0.01} decimals={2} onChange={v => upd('delayFeedback', v)} color="#a78bfa" />
+              <Knob label="Reverb" value={inst.reverbMix} min={0} max={1} step={0.01} decimals={2} onChange={v => upd('reverbMix', v)} color="#a78bfa" defaultValue={defaultInst?.reverbMix} />
+              <Knob label="Delay" value={inst.delayMix} min={0} max={1} step={0.01} decimals={2} onChange={v => upd('delayMix', v)} color="#a78bfa" defaultValue={defaultInst?.delayMix} />
+              <Knob label="Dly Time" value={inst.delayTime} min={0.01} max={1} step={0.01} decimals={2} unit="s" onChange={v => upd('delayTime', v)} color="#a78bfa" defaultValue={defaultInst?.delayTime} />
+              <Knob label="Dly Fbk" value={inst.delayFeedback} min={0} max={0.92} step={0.01} decimals={2} onChange={v => upd('delayFeedback', v)} color="#a78bfa" defaultValue={defaultInst?.delayFeedback} />
             </Section>
 
             {/* ── Arpeggio ── */}
@@ -466,15 +496,15 @@ export default function InstrumentEditor() {
                   ))}
                 </div>
               </div>
-              <Knob label="Arp Spd" value={inst.arpSpeed} min={0} max={0.5} step={0.005} decimals={3} unit="s" onChange={v => upd('arpSpeed', v)} color="#eab308" />
+              <Knob label="Arp Spd" value={inst.arpSpeed} min={0} max={0.5} step={0.005} decimals={3} unit="s" onChange={v => upd('arpSpeed', v)} color="#eab308" defaultValue={defaultInst?.arpSpeed} />
             </Section>
 
             {/* ── Vibrato / Tremolo ── */}
             <Section title="Modulation" color="#f472b6" defaultOpen={false}>
-              <Knob label="Vib Rate" value={inst.vibratoRate} min={0} max={20} step={0.1} decimals={1} unit="Hz" onChange={v => upd('vibratoRate', v)} color="#f472b6" />
-              <Knob label="Vib Depth" value={inst.vibratoDepth} min={0} max={3} step={0.01} decimals={2} unit="st" onChange={v => upd('vibratoDepth', v)} color="#f472b6" />
-              <Knob label="Trem Rate" value={inst.tremoloRate} min={0} max={20} step={0.1} decimals={1} unit="Hz" onChange={v => upd('tremoloRate', v)} color="#f472b6" />
-              <Knob label="Trem Dep" value={inst.tremoloDepth} min={0} max={1} step={0.01} decimals={2} onChange={v => upd('tremoloDepth', v)} color="#f472b6" />
+              <Knob label="Vib Rate" value={inst.vibratoRate} min={0} max={20} step={0.1} decimals={1} unit="Hz" onChange={v => upd('vibratoRate', v)} color="#f472b6" defaultValue={defaultInst?.vibratoRate} />
+              <Knob label="Vib Depth" value={inst.vibratoDepth} min={0} max={3} step={0.01} decimals={2} unit="st" onChange={v => upd('vibratoDepth', v)} color="#f472b6" defaultValue={defaultInst?.vibratoDepth} />
+              <Knob label="Trem Rate" value={inst.tremoloRate} min={0} max={20} step={0.1} decimals={1} unit="Hz" onChange={v => upd('tremoloRate', v)} color="#f472b6" defaultValue={defaultInst?.tremoloRate} />
+              <Knob label="Trem Dep" value={inst.tremoloDepth} min={0} max={1} step={0.01} decimals={2} onChange={v => upd('tremoloDepth', v)} color="#f472b6" defaultValue={defaultInst?.tremoloDepth} />
             </Section>
 
             {/* Preview button */}

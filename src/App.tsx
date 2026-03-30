@@ -1,6 +1,7 @@
 import { useEffect, Suspense, lazy } from 'react';
 import Transport from './components/Transport';
 import StepGrid from './components/StepGrid';
+import Keyboard from './components/Keyboard';
 import { useSequencerStore } from './store/sequencerStore';
 import { getTheme } from './theme';
 
@@ -116,35 +117,41 @@ export default function App() {
           {/* ── Sequencer + optional editor in a responsive layout ── */}
           <div className={`flex flex-col ${showEditor ? 'lg:flex-row lg:items-start' : ''} gap-3`}>
 
-            {/* ── Step Grid ── */}
-            <div
-              className={`rounded-2xl border border-gray-800/80 shadow-xl ${showEditor ? 'lg:flex-1 min-w-0' : 'w-full'}`}
-              style={{ background: 'rgba(10,14,25,0.95)' }}
-            >
-              {/* Grid header */}
-              <div className="flex items-center justify-between px-3 pt-2.5 pb-2 border-b border-gray-800/60">
-                <div className="flex items-center gap-2">
-                  <div className={`w-2 h-2 rounded-full transition-colors ${isPlaying ? 'bg-green-400' : 'bg-gray-700'}`}
-                    style={isPlaying ? { boxShadow: '0 0 8px #4ade80' } : undefined}
-                  />
-                  <h2 className="text-[10px] font-bold uppercase tracking-[0.18em] text-gray-500">
-                    Sequencer
-                  </h2>
+            {/* ── Sequencer + Keyboard wrapper ── */}
+            <div className={`flex flex-col gap-3 ${showEditor ? 'lg:flex-1 min-w-0' : 'w-full'}`}>
+              {/* ── Step Grid ── */}
+              <div
+                className="rounded-2xl border border-gray-800/80 shadow-xl w-full"
+                style={{ background: 'rgba(10,14,25,0.95)' }}
+              >
+                {/* Grid header */}
+                <div className="flex items-center justify-between px-3 pt-2.5 pb-2 border-b border-gray-800/60">
+                  <div className="flex items-center gap-2">
+                    <div className={`w-2 h-2 rounded-full transition-colors ${isPlaying ? 'bg-green-400' : 'bg-gray-700'}`}
+                      style={isPlaying ? { boxShadow: '0 0 8px #4ade80' } : undefined}
+                    />
+                    <h2 className="text-[10px] font-bold uppercase tracking-[0.18em] text-gray-500">
+                      Sequencer
+                    </h2>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    {/* Add track shortcut */}
+                    <button
+                      onClick={() => { setShowEditor(true); setActiveEditorTab('add'); }}
+                      className="px-2.5 py-1 rounded-lg text-[9px] font-bold bg-gray-800 text-gray-400 hover:text-green-400 hover:bg-gray-700 transition-all"
+                    >+ TRACK</button>
+                  </div>
                 </div>
-                <div className="flex items-center gap-2">
-                  {/* Add track shortcut */}
-                  <button
-                    onClick={() => { setShowEditor(true); setActiveEditorTab('add'); }}
-                    className="px-2.5 py-1 rounded-lg text-[9px] font-bold bg-gray-800 text-gray-400 hover:text-green-400 hover:bg-gray-700 transition-all"
-                  >+ TRACK</button>
+
+                <div className="px-2 py-2 overflow-x-auto">
+                  <div className="min-w-0">
+                    <StepGrid />
+                  </div>
                 </div>
               </div>
 
-              <div className="px-2 py-2 overflow-x-auto">
-                <div className="min-w-0">
-                  <StepGrid />
-                </div>
-              </div>
+              {/* ── Live Keyboard ── */}
+              <Keyboard />
             </div>
 
             {/* ── Instrument Editor panel ── */}

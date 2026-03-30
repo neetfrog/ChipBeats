@@ -91,6 +91,8 @@ export interface SequencerState {
   themeMode: ThemeMode;
   previewOnStepToggle: boolean;
   visualizerVisible: boolean;
+  keyboardEnabled: boolean;
+  keyboardInstrumentId: string | null;
   // History
   past: HistoryEntry[];
   future: HistoryEntry[];

@@ -105,6 +105,8 @@ interface Store extends SequencerState {
   setThemeMode: (mode: import('../types').ThemeMode) => void;
   setPreviewOnStepToggle: (on: boolean) => void;
   setVisualizerVisible: (show: boolean) => void;
+  setKeyboardEnabled: (enabled: boolean) => void;
+  setKeyboardInstrument: (id: string | null) => void;
 
   // History
   undo: () => void;
@@ -124,6 +126,15 @@ interface Store extends SequencerState {
 let _clipboardSteps: Step[] | null = null;
 
 // ── Initial state ────────────────────────────────────────────────────────────
+// ── Merge instruments: add new defaults while keeping saved custom ones ────
+function mergeInstruments(saved: InstrumentParams[] | undefined): InstrumentParams[] {
+  if (!saved) return INITIAL_INSTRUMENTS;
+  // Add any instruments from INITIAL that aren't in saved
+  const savedIds = new Set(saved.map(i => i.id));
+  const newInstruments = INITIAL_INSTRUMENTS.filter(i => !savedIds.has(i.id));
+  return [...saved, ...newInstruments];
+}
+
 function buildInitial(): Omit<SequencerState, never> {
   const saved = loadState();
   return {
@@ -132,7 +143,7 @@ function buildInitial(): Omit<SequencerState, never> {
     currentStep: -1,
     currentPatternId: saved?.currentPatternId ?? INITIAL_PATTERN.id,
     patterns: saved?.patterns ?? [INITIAL_PATTERN],
-    instruments: saved?.instruments ?? INITIAL_INSTRUMENTS,
+    instruments: mergeInstruments(saved?.instruments),
     masterVolume: saved?.masterVolume ?? 0.85,
     masterCompressor: saved?.masterCompressor ?? true,
     reverbEnabled: saved?.reverbEnabled ?? true,
@@ -143,6 +154,8 @@ function buildInitial(): Omit<SequencerState, never> {
     themeMode: saved?.themeMode ?? 'retro',
     previewOnStepToggle: saved?.previewOnStepToggle ?? true,
     visualizerVisible: saved?.visualizerVisible ?? true,
+    keyboardEnabled: saved?.keyboardEnabled ?? false,
+    keyboardInstrumentId: saved?.keyboardInstrumentId ?? 'synth',
     past: [],
     future: [],
     chainedPatternIds: saved?.chainedPatternIds ?? [],
@@ -622,6 +635,14 @@ export const useSequencerStore = create<Store>((set, get) => ({
   },
   setVisualizerVisible: (show) => {
     set({ visualizerVisible: show });
+    get().saveToStorage();
+  },
+  setKeyboardEnabled: (enabled) => {
+    set({ keyboardEnabled: enabled });
+    get().saveToStorage();
+  },
+  setKeyboardInstrument: (id) => {
+    set({ keyboardInstrumentId: id });
     get().saveToStorage();
   },
 
