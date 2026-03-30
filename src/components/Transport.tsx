@@ -1,19 +1,23 @@
 import { useState, useEffect, useRef } from 'react';
 import { useSequencerStore } from '../store/sequencerStore';
+import { downloadProject, loadProjectFile } from '../utils/projectExport';
 
 const BPM_MIN = 40;
 const BPM_MAX = 300;
 
 export default function Transport() {
   const {
-    bpm, isPlaying, masterVolume, masterCompressor,
+    bpm, isPlaying, masterVolume, masterCompressor, themeMode,
+    previewOnStepToggle, setPreviewOnStepToggle, visualizerVisible, setVisualizerVisible,
     play, pause, stop, setBpm, tapTempo, setMasterVolume, toggleCompressor,
     patterns, currentPatternId, setCurrentPattern,
     addPattern, duplicatePattern, deletePattern, renamePattern,
-    setStepCount, setSwing,
+    setStepCount, setSwing, setThemeMode,
     undo, redo, past, future,
     resetAll, saveToStorage,
     showEditor, setShowEditor,
+    instruments, setEditingInstrument, setActiveEditorTab,
+    importProject, getProjectExportData,
   } = useSequencerStore();
 
   const currentPattern = patterns.find(p => p.id === currentPatternId)!;
@@ -49,10 +53,25 @@ export default function Transport() {
       if (e.code === 'ArrowUp') { e.preventDefault(); setBpm(Math.min(BPM_MAX, bpm + 1)); }
       if (e.code === 'ArrowDown') { e.preventDefault(); setBpm(Math.max(BPM_MIN, bpm - 1)); }
       if (e.code === 'KeyT') tapTempo();
+      
+      // Track selection shortcuts (1-9)
+      if (e.code >= 'Digit1' && e.code <= 'Digit9') {
+        const trackIdx = parseInt(e.code[5]) - 1;
+        if (trackIdx < currentPattern.tracks.length) {
+          const track = currentPattern.tracks[trackIdx];
+          const inst = instruments.find(i => i.id === track.instrumentId);
+          if (inst) {
+            e.preventDefault();
+            setEditingInstrument(inst.id);
+            setShowEditor(true);
+            setActiveEditorTab('edit');
+          }
+        }
+      }
     };
     window.addEventListener('keydown', handler);
     return () => window.removeEventListener('keydown', handler);
-  }, [isPlaying, bpm, play, pause, stop, setBpm, tapTempo, undo, redo, saveToStorage]);
+  }, [isPlaying, bpm, play, pause, stop, setBpm, tapTempo, undo, redo, saveToStorage, currentPattern.tracks, instruments, setEditingInstrument, setShowEditor, setActiveEditorTab]);
 
   // BPM scroll wheel
   const handleBpmWheel = (e: React.WheelEvent) => {
@@ -176,6 +195,57 @@ export default function Transport() {
             />
             <span className="text-[10px] text-gray-300">Compressor</span>
           </label>
+          <label className="flex items-center gap-1.5 cursor-pointer">
+            <input
+              type="checkbox"
+              checked={previewOnStepToggle}
+              onChange={e => setPreviewOnStepToggle(e.target.checked)}
+              className="accent-blue-400"
+            />
+            <span className="text-[10px] text-gray-300">Preview on step toggle</span>
+          </label>
+          <label className="flex items-center gap-1.5 cursor-pointer">
+            <input
+              type="checkbox"
+              checked={visualizerVisible}
+              onChange={e => setVisualizerVisible(e.target.checked)}
+              className="accent-indigo-400"
+            />
+            <span className="text-[10px] text-gray-300">Show visualizer</span>
+          </label>
+          
+          {/* Theme selector */}
+          <select
+            value={themeMode}
+            onChange={(e) => setThemeMode(e.target.value as any)}
+            className="px-2 py-1 rounded-lg text-[9px] font-bold bg-gray-700 text-gray-300 hover:text-white transition-all border border-gray-600 outline-none cursor-pointer"
+            title="Color Theme"
+          >
+            <option value="retro">🎮 Retro</option>
+            <option value="dark">🌙 Dark</option>
+            <option value="high-contrast">⚡ HC</option>
+          </select>
+
+          <button
+            onClick={() => downloadProject(getProjectExportData())}
+            className="px-3 py-1 rounded-lg text-[9px] font-bold bg-gray-700 text-blue-400 hover:bg-gray-600 transition-all"
+            title="Download project as JSON"
+          >⬇ Export</button>
+          <button
+            onClick={async () => {
+              try {
+                const project = await loadProjectFile();
+                if (window.confirm(`Load "${project.name}"? This will replace your current project.`)) {
+                  importProject(project);
+                }
+              } catch (e) {
+                window.alert(`Failed to import: ${e instanceof Error ? e.message : 'Unknown error'}`);
+              }
+            }}
+            className="px-3 py-1 rounded-lg text-[9px] font-bold bg-gray-700 text-blue-400 hover:bg-gray-600 transition-all"
+            title="Load project from JSON file"
+          >⬆ Import</button>
+          
           <button
             onClick={() => { saveToStorage(); }}
             className="px-3 py-1 rounded-lg text-[9px] font-bold bg-gray-700 text-green-400 hover:bg-gray-600 transition-all"
@@ -187,7 +257,7 @@ export default function Transport() {
             className="px-3 py-1 rounded-lg text-[9px] font-bold bg-gray-700 text-red-400 hover:bg-red-900 transition-all"
           >🗑 Reset All</button>
           <div className="text-[8px] text-gray-600 tracking-widest">
-            Space=play · T=tap · ↑↓=BPM · Ctrl+Z=undo
+            Space=play · T=tap · ↑↓=BPM · Ctrl+Z=undo · 1-9=track
           </div>
         </div>
       )}

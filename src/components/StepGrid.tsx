@@ -30,6 +30,7 @@ export default function StepGrid() {
     moveTrackUp, moveTrackDown,
     setEditingInstrument, editingInstrumentId, setShowEditor, setActiveEditorTab,
     soloedTrackIndex, setSoloTrack,
+    previewOnStepToggle,
     updateInstrument,
     previewInstrument,
   } = useSequencerStore();
@@ -89,7 +90,7 @@ export default function StepGrid() {
     if (step.active !== dragState.current.activating) {
       toggleStep(ti, si);
       // Preview sound when activating
-      if (dragState.current.activating) {
+      if (dragState.current.activating && previewOnStepToggle) {
         const inst = s.instruments.find(i => i.id === pat?.tracks[ti]?.instrumentId);
         if (inst) {
           const ctx = getAudioContext();
@@ -98,7 +99,7 @@ export default function StepGrid() {
         }
       }
     }
-  }, [toggleStep]);
+  }, [toggleStep, previewOnStepToggle]);
 
   const handleStepPointerUp = useCallback((
     _evt: React.PointerEvent,
@@ -111,18 +112,18 @@ export default function StepGrid() {
       holdTimer.current = null;
       // Short tap = toggle
       toggleStep(ti, si);
-      // Preview
+      // Preview: play when the step is now active
       const s = useSequencerStore.getState();
       const pat = s.patterns.find(p => p.id === s.currentPatternId);
       const step = pat?.tracks[ti]?.steps[si];
       const inst = s.instruments.find(i => i.id === pat?.tracks[ti]?.instrumentId);
-      if (inst && step) {
+      if (inst && step && previewOnStepToggle) {
         const ctx = getAudioContext();
         if (ctx.state === 'suspended') ctx.resume();
-        if (!step.active) playInstrument(inst, step.velocity, step.accent, 0, step.note);
+        if (step.active) playInstrument(inst, step.velocity, step.accent, 0, step.note);
       }
     }
-  }, [toggleStep]);
+  }, [toggleStep, previewOnStepToggle]);
 
   const handleStepPointerCancel = useCallback(() => {
     dragState.current = null;
@@ -269,20 +270,36 @@ export default function StepGrid() {
             className={`flex items-center gap-0.5 sm:gap-1 transition-opacity duration-200 ${dimmed ? 'opacity-20' : ''}`}
           >
             {/* Instrument label */}
-            <button
-              onPointerDown={e => e.stopPropagation()}
-              onClick={() => openTrackEdit(inst.id)}
-              className={`w-24 sm:w-28 shrink-0 flex items-center gap-1 px-2 py-1.5 rounded-lg text-left transition-all active:scale-95 ${
-                isEditing ? 'ring-1 ring-white/40 brightness-125' : 'hover:brightness-125'
-              } ${muted ? 'opacity-40' : ''}`}
-              style={{ backgroundColor: inst.color + '22', borderLeft: `3px solid ${inst.color}` }}
-            >
-              {muted && <span className="text-[9px]">🔇</span>}
-              {soloed && <span className="text-[9px]">⚡</span>}
-              <span className="text-[10px] sm:text-[11px] font-bold truncate leading-tight" style={{ color: inst.color }}>
-                {inst.name}
-              </span>
-            </button>
+            <div className="w-24 sm:w-28 shrink-0 flex items-center gap-1">
+              <button
+                onPointerDown={e => e.stopPropagation()}
+                onClick={() => updateInstrument(inst.id, { muted: !muted })}
+                className={`rounded-md px-1 py-1 text-[9px] leading-none transition-all ${muted ? 'bg-red-600 text-white' : 'bg-gray-700 text-gray-100 hover:bg-gray-600'}`}
+                title={muted ? 'Unmute track' : 'Mute track'}
+              >
+                {muted ? '🔊' : '🔇'}
+              </button>
+              <button
+                onPointerDown={e => e.stopPropagation()}
+                onClick={() => setSoloTrack(soloed ? null : ti)}
+                className={`rounded-md px-1 py-1 text-[9px] leading-none transition-all ${soloed ? 'bg-yellow-500 text-black' : 'bg-gray-700 text-gray-100 hover:bg-gray-600'}`}
+                title={soloed ? 'Unsolo track' : 'Solo track'}
+              >
+                ⚡
+              </button>
+              <button
+                onPointerDown={e => e.stopPropagation()}
+                onClick={() => openTrackEdit(inst.id)}
+                className={`flex-1 h-8 flex items-center px-2 rounded-lg text-[10px] text-left transition-all active:scale-95 ${
+                  isEditing ? 'ring-1 ring-white/40 brightness-125' : 'hover:brightness-125'
+                } ${muted ? 'opacity-50' : ''}`}
+                style={{ backgroundColor: inst.color + '22', borderLeft: `3px solid ${inst.color}` }}
+              >
+                <span className="truncate font-bold" style={{ color: inst.color }}>
+                  {inst.name}
+                </span>
+              </button>
+            </div>
 
             {/* Steps */}
             <div className="flex gap-0.5 flex-1 min-w-0">

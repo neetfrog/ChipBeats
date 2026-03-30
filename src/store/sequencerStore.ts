@@ -102,6 +102,9 @@ interface Store extends SequencerState {
   // UI
   setShowEditor: (show: boolean) => void;
   setActiveEditorTab: (tab: 'edit' | 'add') => void;
+  setThemeMode: (mode: import('../types').ThemeMode) => void;
+  setPreviewOnStepToggle: (on: boolean) => void;
+  setVisualizerVisible: (show: boolean) => void;
 
   // History
   undo: () => void;
@@ -111,6 +114,10 @@ interface Store extends SequencerState {
   // Save / load
   saveToStorage: () => void;
   resetAll: () => void;
+  
+  // Import / export
+  importProject: (data: import('../utils/projectExport').ProjectExport) => void;
+  getProjectExportData: () => import('../utils/projectExport').ProjectExport;
 }
 
 // ── Clipboard ────────────────────────────────────────────────────────────────
@@ -133,6 +140,9 @@ function buildInitial(): Omit<SequencerState, never> {
     soloedTrackIndex: null,
     showEditor: false,
     activeEditorTab: 'edit',
+    themeMode: saved?.themeMode ?? 'retro',
+    previewOnStepToggle: saved?.previewOnStepToggle ?? true,
+    visualizerVisible: saved?.visualizerVisible ?? true,
     past: [],
     future: [],
     chainedPatternIds: saved?.chainedPatternIds ?? [],
@@ -602,6 +612,18 @@ export const useSequencerStore = create<Store>((set, get) => ({
   // ── UI ───────────────────────────────────────────────────────────────────
   setShowEditor: (show) => set({ showEditor: show }),
   setActiveEditorTab: (tab) => set({ activeEditorTab: tab }),
+  setThemeMode: (mode) => {
+    set({ themeMode: mode });
+    get().saveToStorage();
+  },
+  setPreviewOnStepToggle: (on) => {
+    set({ previewOnStepToggle: on });
+    get().saveToStorage();
+  },
+  setVisualizerVisible: (show) => {
+    set({ visualizerVisible: show });
+    get().saveToStorage();
+  },
 
   // ── History ───────────────────────────────────────────────────────────────
   _snapshot: () => {
@@ -665,5 +687,39 @@ export const useSequencerStore = create<Store>((set, get) => ({
       future: [],
     });
     localStorage.removeItem(STORAGE_KEY);
+  },
+
+  // ── Import / Export ───────────────────────────────────────────────────────
+  importProject: (data) => {
+    get()._snapshot();
+    set({
+      bpm: data.bpm,
+      patterns: data.patterns,
+      instruments: data.instruments,
+      masterVolume: data.masterVolume,
+      masterCompressor: data.masterCompressor,
+      reverbEnabled: data.reverbEnabled,
+      chainedPatternIds: data.chainedPatternIds,
+      currentPatternId: data.patterns[0]?.id ?? '',
+      currentStep: -1,
+      isPlaying: false,
+    });
+    get().saveToStorage();
+  },
+
+  getProjectExportData: () => {
+    const s = get();
+    return {
+      version: '1.0',
+      timestamp: new Date().toISOString(),
+      name: `ChipBeat - ${s.patterns.find(p => p.id === s.currentPatternId)?.name ?? 'Project'}`,
+      bpm: s.bpm,
+      patterns: s.patterns,
+      instruments: s.instruments,
+      masterVolume: s.masterVolume,
+      masterCompressor: s.masterCompressor,
+      reverbEnabled: s.reverbEnabled,
+      chainedPatternIds: s.chainedPatternIds,
+    };
   },
 }));

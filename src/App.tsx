@@ -1,12 +1,31 @@
-import { useEffect } from 'react';
+import { useEffect, Suspense, lazy } from 'react';
 import Transport from './components/Transport';
 import StepGrid from './components/StepGrid';
-import InstrumentEditor from './components/InstrumentEditor';
-import Visualizer from './components/Visualizer';
 import { useSequencerStore } from './store/sequencerStore';
+import { getTheme } from './theme';
+
+// Lazy load heavy components
+const Visualizer = lazy(() => import('./components/Visualizer'));
+const InstrumentEditor = lazy(() => import('./components/InstrumentEditor'));
+
+function LoadingPlaceholder() {
+  return <div className="flex items-center justify-center py-4 text-gray-600 text-sm">Loading...</div>;
+}
 
 export default function App() {
-  const { showEditor, isPlaying, editingInstrumentId, setShowEditor, setActiveEditorTab, setEditingInstrument } = useSequencerStore();
+  const { showEditor, isPlaying, editingInstrumentId, setShowEditor, setActiveEditorTab, setEditingInstrument, visualizerVisible, themeMode } = useSequencerStore();
+
+  const theme = getTheme(themeMode);
+
+  // Apply CSS vars for theme
+  useEffect(() => {
+    document.documentElement.style.setProperty('--cb-bg', theme.colors.bg);
+    document.documentElement.style.setProperty('--cb-bg-secondary', theme.colors.bgSecondary);
+    document.documentElement.style.setProperty('--cb-border', theme.colors.border);
+    document.documentElement.style.setProperty('--cb-text', theme.colors.text);
+    document.documentElement.style.setProperty('--cb-text-secondary', theme.colors.textSecondary);
+    document.documentElement.style.setProperty('--cb-accent', theme.colors.accent);
+  }, [theme]);
 
   // Auto-open editor when instrument is selected
   useEffect(() => {
@@ -18,16 +37,23 @@ export default function App() {
 
   return (
     <div
-      className="min-h-screen bg-gray-950 text-white select-none overflow-x-hidden"
-      style={{ fontFamily: "'Share Tech Mono', 'Courier New', monospace" }}
+      className="min-h-screen select-none overflow-x-hidden"
+      style={{
+        fontFamily: "'Share Tech Mono', 'Courier New', monospace",
+        backgroundColor: theme.colors.bg,
+        color: theme.colors.text,
+      }}
     >
       {/* CRT Scanlines */}
-      <div
-        className="fixed inset-0 pointer-events-none z-50 opacity-[0.018]"
-        style={{
-          backgroundImage: 'repeating-linear-gradient(0deg, #000 0px, #000 1px, transparent 1px, transparent 3px)',
-        }}
-      />
+      {theme.scanlines && (
+        <div
+          className="fixed inset-0 pointer-events-none z-50"
+          style={{
+            opacity: 0.018,
+            backgroundImage: 'repeating-linear-gradient(0deg, rgba(0,0,0,0.7) 0px, rgba(0,0,0,0.9) 1px, transparent 1px, transparent 3px)',
+          }}
+        />
+      )}
 
       {/* Ambient glow background */}
       <div className="fixed inset-0 pointer-events-none z-0 overflow-hidden">
@@ -47,7 +73,13 @@ export default function App() {
       <div className="relative z-10 flex flex-col min-h-screen">
 
         {/* ── Sticky Transport ── */}
-        <div className="sticky top-0 z-30 bg-gray-950/95 backdrop-blur-xl border-b border-gray-800/80 shadow-2xl">
+        <div
+          className="sticky top-0 z-30 backdrop-blur-xl shadow-2xl"
+          style={{
+            backgroundColor: theme.colors.bgSecondary + 'dd',
+            borderBottom: `1px solid ${theme.colors.border}`,
+          }}
+        >
           <div className="max-w-5xl mx-auto px-3 py-2.5">
             <Transport />
           </div>
@@ -57,25 +89,29 @@ export default function App() {
         <div className="flex-1 max-w-5xl mx-auto w-full px-3 py-3 space-y-3 pb-8">
 
           {/* ── Visualizer ── */}
-          <div
-            className="rounded-2xl overflow-hidden border border-gray-800/60"
-            style={{ background: 'rgba(9,14,26,0.9)' }}
-          >
-            <Visualizer />
-            <div className="flex items-center justify-between px-3 py-1">
-              <span className="text-gray-800 text-[8px] uppercase tracking-[0.18em]">
-                SPECTRUM ANALYZER
-              </span>
-              <div className="flex items-center gap-2">
-                {isPlaying && (
-                  <div className="flex items-center gap-1">
-                    <div className="w-1.5 h-1.5 rounded-full bg-green-400 animate-pulse" />
-                    <span className="text-green-600 text-[8px] tracking-widest">LIVE</span>
-                  </div>
-                )}
+          {visualizerVisible && (
+            <div
+              className="rounded-2xl overflow-hidden border border-gray-800/60"
+              style={{ background: 'rgba(9,14,26,0.9)' }}
+            >
+              <Suspense fallback={<LoadingPlaceholder />}>
+                <Visualizer />
+              </Suspense>
+              <div className="flex items-center justify-between px-3 py-1">
+                <span className="text-gray-800 text-[8px] uppercase tracking-[0.18em]">
+                  SPECTRUM ANALYZER
+                </span>
+                <div className="flex items-center gap-2">
+                  {isPlaying && (
+                    <div className="flex items-center gap-1">
+                      <div className="w-1.5 h-1.5 rounded-full bg-green-400 animate-pulse" />
+                      <span className="text-green-600 text-[8px] tracking-widest">LIVE</span>
+                    </div>
+                  )}
+                </div>
               </div>
             </div>
-          </div>
+          )}
 
           {/* ── Sequencer + optional editor in a responsive layout ── */}
           <div className={`flex flex-col ${showEditor ? 'lg:flex-row lg:items-start' : ''} gap-3`}>
@@ -121,7 +157,9 @@ export default function App() {
                     className="text-gray-600 hover:text-gray-400 text-sm transition-colors"
                   >✕</button>
                 </div>
-                <InstrumentEditor />
+                <Suspense fallback={<LoadingPlaceholder />}>
+                  <InstrumentEditor />
+                </Suspense>
               </div>
             )}
           </div>

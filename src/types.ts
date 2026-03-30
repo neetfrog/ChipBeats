@@ -1,4 +1,5 @@
 export type WaveShape = 'square' | 'sawtooth' | 'triangle' | 'sine' | 'noise' | 'pulse';
+export type ThemeMode = 'retro' | 'dark' | 'high-contrast';
 
 export type InstrumentType =
   | 'kick' | 'snare' | 'hihat' | 'openhat' | 'clap'
@@ -87,6 +88,9 @@ export interface SequencerState {
   soloedTrackIndex: number | null;
   showEditor: boolean;
   activeEditorTab: 'edit' | 'add';
+  themeMode: ThemeMode;
+  previewOnStepToggle: boolean;
+  visualizerVisible: boolean;
   // History
   past: HistoryEntry[];
   future: HistoryEntry[];
