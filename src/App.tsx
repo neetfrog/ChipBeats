@@ -1,0 +1,137 @@
+import { useEffect } from 'react';
+import Transport from './components/Transport';
+import StepGrid from './components/StepGrid';
+import InstrumentEditor from './components/InstrumentEditor';
+import Visualizer from './components/Visualizer';
+import { useSequencerStore } from './store/sequencerStore';
+
+export default function App() {
+  const { showEditor, isPlaying, editingInstrumentId, setShowEditor, setActiveEditorTab, setEditingInstrument } = useSequencerStore();
+
+  // Auto-open editor when instrument is selected
+  useEffect(() => {
+    if (editingInstrumentId) {
+      setShowEditor(true);
+      setActiveEditorTab('edit');
+    }
+  }, [editingInstrumentId]);
+
+  return (
+    <div
+      className="min-h-screen bg-gray-950 text-white select-none overflow-x-hidden"
+      style={{ fontFamily: "'Share Tech Mono', 'Courier New', monospace" }}
+    >
+      {/* CRT Scanlines */}
+      <div
+        className="fixed inset-0 pointer-events-none z-50 opacity-[0.018]"
+        style={{
+          backgroundImage: 'repeating-linear-gradient(0deg, #000 0px, #000 1px, transparent 1px, transparent 3px)',
+        }}
+      />
+
+      {/* Ambient glow background */}
+      <div className="fixed inset-0 pointer-events-none z-0 overflow-hidden">
+        <div
+          className={`absolute -top-40 left-1/2 -translate-x-1/2 w-[700px] h-[350px] rounded-full blur-[130px] transition-all duration-1000 ${
+            isPlaying ? 'opacity-25' : 'opacity-8'
+          }`}
+          style={{ background: 'radial-gradient(ellipse, #6d28d9 0%, #0e7490 50%, transparent 70%)' }}
+        />
+        <div
+          className="absolute bottom-0 right-0 w-[400px] h-[200px] rounded-full blur-[100px] opacity-10"
+          style={{ background: 'radial-gradient(ellipse, #ec4899 0%, transparent 70%)' }}
+        />
+      </div>
+
+      {/* ── Main layout ── */}
+      <div className="relative z-10 flex flex-col min-h-screen">
+
+        {/* ── Sticky Transport ── */}
+        <div className="sticky top-0 z-30 bg-gray-950/95 backdrop-blur-xl border-b border-gray-800/80 shadow-2xl">
+          <div className="max-w-5xl mx-auto px-3 py-2.5">
+            <Transport />
+          </div>
+        </div>
+
+        {/* ── Body ── */}
+        <div className="flex-1 max-w-5xl mx-auto w-full px-3 py-3 space-y-3 pb-8">
+
+          {/* ── Visualizer ── */}
+          <div
+            className="rounded-2xl overflow-hidden border border-gray-800/60"
+            style={{ background: 'rgba(9,14,26,0.9)' }}
+          >
+            <Visualizer />
+            <div className="flex items-center justify-between px-3 py-1">
+              <span className="text-gray-800 text-[8px] uppercase tracking-[0.18em]">
+                SPECTRUM ANALYZER
+              </span>
+              <div className="flex items-center gap-2">
+                {isPlaying && (
+                  <div className="flex items-center gap-1">
+                    <div className="w-1.5 h-1.5 rounded-full bg-green-400 animate-pulse" />
+                    <span className="text-green-600 text-[8px] tracking-widest">LIVE</span>
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
+
+          {/* ── Sequencer + optional editor in a responsive layout ── */}
+          <div className={`flex flex-col ${showEditor ? 'lg:flex-row lg:items-start' : ''} gap-3`}>
+
+            {/* ── Step Grid ── */}
+            <div
+              className={`rounded-2xl border border-gray-800/80 shadow-xl ${showEditor ? 'lg:flex-1 min-w-0' : 'w-full'}`}
+              style={{ background: 'rgba(10,14,25,0.95)' }}
+            >
+              {/* Grid header */}
+              <div className="flex items-center justify-between px-3 pt-2.5 pb-2 border-b border-gray-800/60">
+                <div className="flex items-center gap-2">
+                  <div className={`w-2 h-2 rounded-full transition-colors ${isPlaying ? 'bg-green-400' : 'bg-gray-700'}`}
+                    style={isPlaying ? { boxShadow: '0 0 8px #4ade80' } : undefined}
+                  />
+                  <h2 className="text-[10px] font-bold uppercase tracking-[0.18em] text-gray-500">
+                    Sequencer
+                  </h2>
+                </div>
+                <div className="flex items-center gap-2">
+                  {/* Add track shortcut */}
+                  <button
+                    onClick={() => { setShowEditor(true); setActiveEditorTab('add'); }}
+                    className="px-2.5 py-1 rounded-lg text-[9px] font-bold bg-gray-800 text-gray-400 hover:text-green-400 hover:bg-gray-700 transition-all"
+                  >+ TRACK</button>
+                </div>
+              </div>
+
+              <div className="px-2 py-2 overflow-x-auto">
+                <div className="min-w-0">
+                  <StepGrid />
+                </div>
+              </div>
+            </div>
+
+            {/* ── Instrument Editor panel ── */}
+            {showEditor && (
+              <div className="lg:w-80 xl:w-96 shrink-0 animate-slide-in">
+                <div className="flex items-center justify-between mb-1.5">
+                  <span className="text-[9px] uppercase tracking-widest text-gray-600">Instrument Editor</span>
+                  <button
+                    onClick={() => { setShowEditor(false); setEditingInstrument(null); }}
+                    className="text-gray-600 hover:text-gray-400 text-sm transition-colors"
+                  >✕</button>
+                </div>
+                <InstrumentEditor />
+              </div>
+            )}
+          </div>
+
+          {/* ── Footer ── */}
+          <div className="text-center text-gray-800 text-[8px] tracking-[0.25em] uppercase pt-2">
+            ChipBeat · Web Audio API · All sounds generated in-code
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}

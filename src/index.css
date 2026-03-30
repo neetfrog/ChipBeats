@@ -1,0 +1,120 @@
+@import "tailwindcss";
+
+/* ── Animations ──────────────────────────────────────────────────────────── */
+@keyframes slide-in {
+  from { opacity: 0; transform: translateX(16px); }
+  to   { opacity: 1; transform: translateX(0); }
+}
+.animate-slide-in {
+  animation: slide-in 0.2s ease-out both;
+}
+
+@keyframes pulse-glow {
+  0%, 100% { opacity: 1; }
+  50%       { opacity: 0.4; }
+}
+.animate-pulse-glow {
+  animation: pulse-glow 1s ease-in-out infinite;
+}
+
+@keyframes beat-flash {
+  0%   { opacity: 1; }
+  100% { opacity: 0; }
+}
+
+/* ── Scrollbar ───────────────────────────────────────────────────────────── */
+::-webkit-scrollbar       { width: 3px; height: 3px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: #374151; border-radius: 3px; }
+::-webkit-scrollbar-thumb:hover { background: #4b5563; }
+
+/* ── Mobile base ─────────────────────────────────────────────────────────── */
+html {
+  -webkit-text-size-adjust: 100%;
+  overscroll-behavior: none;
+}
+* {
+  -webkit-tap-highlight-color: transparent;
+  touch-action: manipulation;
+  box-sizing: border-box;
+}
+body {
+  overscroll-behavior: none;
+  -webkit-overflow-scrolling: touch;
+}
+
+/* ── Range inputs ────────────────────────────────────────────────────────── */
+input[type=range] {
+  height: 4px;
+  border-radius: 2px;
+  cursor: pointer;
+  -webkit-appearance: none;
+  appearance: none;
+  background: transparent;
+}
+input[type=range]::-webkit-slider-runnable-track {
+  height: 4px;
+  border-radius: 2px;
+  background: #374151;
+}
+input[type=range]::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  margin-top: -5px;
+  background: currentColor;
+  cursor: pointer;
+  border: 2px solid #1f2937;
+  transition: transform 0.1s;
+}
+input[type=range]::-webkit-slider-thumb:hover {
+  transform: scale(1.2);
+}
+input[type=range]::-moz-range-track {
+  height: 4px;
+  border-radius: 2px;
+  background: #374151;
+}
+input[type=range]::-moz-range-thumb {
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  background: currentColor;
+  cursor: pointer;
+  border: 2px solid #1f2937;
+}
+
+/* ── Number inputs ───────────────────────────────────────────────────────── */
+input[type=number] {
+  -moz-appearance: textfield;
+}
+input[type=number]::-webkit-inner-spin-button,
+input[type=number]::-webkit-outer-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}
+
+/* ── Touch target sizing ─────────────────────────────────────────────────── */
+@media (pointer: coarse) {
+  button {
+    min-height: 28px;
+  }
+}
+
+/* ── Prevent text selection on grid ─────────────────────────────────────── */
+.step-grid-row {
+  user-select: none;
+  -webkit-user-select: none;
+}
+
+/* ── CRT pixel font feel ─────────────────────────────────────────────────── */
+:root {
+  font-smooth: never;
+  -webkit-font-smoothing: none;
+}
+@media (min-width: 640px) {
+  :root {
+    -webkit-font-smoothing: antialiased;
+  }
+}
