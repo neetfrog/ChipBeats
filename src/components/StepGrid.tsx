@@ -1,4 +1,4 @@
-import { useState, useRef, useCallback, useEffect } from 'react';
+import { useState, useRef, useCallback, useEffect, memo, useMemo } from 'react';
 import { useSequencerStore } from '../store/sequencerStore';
 import { playInstrument, getAudioContext } from '../audio/synth';
 
@@ -21,19 +21,146 @@ interface StepPopup {
   mode: EditMode;
 }
 
+// ── Memoized step cell to prevent re-render when siblings change ────────────
+const StepButton = memo<{
+  ti: number;
+  si: number;
+  isActive: boolean;
+  velocity: number;
+  accent: boolean;
+  note: number;
+  isCurrent: boolean;
+  instColor: string;
+  muted: boolean;
+  onPointerDown: (e: React.PointerEvent, ti: number, si: number, isActive: boolean) => void;
+  onPointerEnter: (e: React.PointerEvent, ti: number, si: number) => void;
+  onPointerUp: (e: React.PointerEvent, ti: number, si: number) => void;
+  onPointerCancel: () => void;
+}>(({
+  ti, si, isActive, velocity, accent, note, isCurrent, instColor, muted,
+  onPointerDown, onPointerEnter, onPointerUp, onPointerCancel,
+}) => {
+  const velH = Math.round(velocity * 100);
+  const isGroupStart = si % GROUP === 0 && si !== 0;
+
+  return (
+    <button
+      onPointerDown={e => onPointerDown(e, ti, si, isActive)}
+      onPointerEnter={e => onPointerEnter(e, ti, si)}
+      onPointerUp={e => onPointerUp(e, ti, si)}
+      onPointerCancel={onPointerCancel}
+      className={`relative flex-1 h-8 sm:h-9 rounded-sm sm:rounded select-none touch-none ${
+        isGroupStart ? 'ml-0.5 sm:ml-1' : ''
+      } ${isCurrent && !isActive ? 'ring-1 ring-inset ring-white/30' : ''}`}
+      style={{
+        backgroundColor: isActive
+          ? instColor
+          : (Math.floor(si / GROUP) % 2 === 0 ? '#1e293b' : '#172033'),
+        opacity: muted ? 0.3 : isActive ? Math.max(0.35, velocity) : 0.9,
+        boxShadow: isCurrent && isActive
+          ? `0 0 12px ${instColor}aa`
+          : undefined,
+        transform: isCurrent ? 'scaleY(1.08)' : undefined,
+      }}
+    >
+      {isActive && (
+        <div
+          className="absolute bottom-0 left-0 right-0 rounded-b"
+          style={{
+            height: `${velH}%`,
+            background: `linear-gradient(to top, ${instColor}cc, transparent)`,
+            opacity: 0.4,
+          }}
+        />
+      )}
+      {accent && isActive && (
+        <span className="absolute inset-0 flex items-center justify-center text-[8px] text-black/60 font-black pointer-events-none leading-none">★</span>
+      )}
+      {isActive && note !== 0 && (
+        <span className="absolute bottom-0.5 right-0.5 text-[6px] font-mono font-bold text-black/50 leading-none pointer-events-none">
+          {note > 0 ? `+${note}` : note}
+        </span>
+      )}
+    </button>
+  );
+}, (prev, next) => (
+  prev.isActive === next.isActive &&
+  prev.velocity === next.velocity &&
+  prev.accent === next.accent &&
+  prev.note === next.note &&
+  prev.isCurrent === next.isCurrent &&
+  prev.muted === next.muted &&
+  prev.instColor === next.instColor
+));
+StepButton.displayName = 'StepButton';
+
+// ── Memoized step header indicator ──────────────────────────────────────────
+const StepHeader = memo<{ stepCount: number; currentStep: number; isPlaying: boolean }>(
+  ({ stepCount, currentStep, isPlaying }) => (
+    <div className="flex items-center mb-0.5">
+      <div className="w-24 sm:w-28 shrink-0" />
+      <div className="flex gap-0.5 flex-1 min-w-0">
+        {Array.from({ length: stepCount }, (_, si) => {
+          const isBar = si % GROUP === 0;
+          const isCurrent = si === currentStep && isPlaying;
+          return (
+            <div
+              key={si}
+              className={`flex-1 text-center text-[8px] sm:text-[9px] font-mono leading-none py-0.5 ${
+                isBar ? 'ml-0.5 sm:ml-1' : ''
+              } ${
+                isCurrent ? 'text-white font-bold' : isBar ? 'text-gray-600' : 'text-gray-800'
+              }`}
+            >
+              {isBar ? (si / GROUP + 1) : '·'}
+            </div>
+          );
+        })}
+      </div>
+      <div className="w-8 sm:w-10 shrink-0" />
+    </div>
+  )
+);
+StepHeader.displayName = 'StepHeader';
+
 export default function StepGrid() {
-  const {
-    instruments, patterns, currentPatternId, currentStep, isPlaying,
-    toggleStep, toggleStepAccent, setStepVelocity, setStepNote,
-    clearTrack, randomizeTrack, fillTrack,
-    copyTrack, pasteTrack, shiftTrackLeft, shiftTrackRight, invertTrack,
-    moveTrackUp, moveTrackDown,
-    setEditingInstrument, editingInstrumentId, setShowEditor, setActiveEditorTab,
-    soloedTrackIndex, setSoloTrack,
-    previewOnStepToggle,
-    updateInstrument,
-    previewInstrument,
-  } = useSequencerStore();
+  // Split selectors to minimize re-renders
+  const instruments = useSequencerStore(s => s.instruments);
+  const patterns = useSequencerStore(s => s.patterns);
+  const currentPatternId = useSequencerStore(s => s.currentPatternId);
+  const currentStep = useSequencerStore(s => s.currentStep);
+  const isPlaying = useSequencerStore(s => s.isPlaying);
+  const editingInstrumentId = useSequencerStore(s => s.editingInstrumentId);
+  const soloedTrackIndex = useSequencerStore(s => s.soloedTrackIndex);
+
+  // Stable action references (these don't change)
+  const toggleStep = useSequencerStore(s => s.toggleStep);
+  const toggleStepAccent = useSequencerStore(s => s.toggleStepAccent);
+  const setStepVelocity = useSequencerStore(s => s.setStepVelocity);
+  const setStepNote = useSequencerStore(s => s.setStepNote);
+  const clearTrack = useSequencerStore(s => s.clearTrack);
+  const randomizeTrack = useSequencerStore(s => s.randomizeTrack);
+  const fillTrack = useSequencerStore(s => s.fillTrack);
+  const copyTrack = useSequencerStore(s => s.copyTrack);
+  const pasteTrack = useSequencerStore(s => s.pasteTrack);
+  const shiftTrackLeft = useSequencerStore(s => s.shiftTrackLeft);
+  const shiftTrackRight = useSequencerStore(s => s.shiftTrackRight);
+  const invertTrack = useSequencerStore(s => s.invertTrack);
+  const moveTrackUp = useSequencerStore(s => s.moveTrackUp);
+  const moveTrackDown = useSequencerStore(s => s.moveTrackDown);
+  const setEditingInstrument = useSequencerStore(s => s.setEditingInstrument);
+  const setShowEditor = useSequencerStore(s => s.setShowEditor);
+  const setActiveEditorTab = useSequencerStore(s => s.setActiveEditorTab);
+  const setSoloTrack = useSequencerStore(s => s.setSoloTrack);
+  const updateInstrument = useSequencerStore(s => s.updateInstrument);
+  const previewInstrument = useSequencerStore(s => s.previewInstrument);
+
+  // Build instrument lookup map for O(1) access
+  const instMap = useMemo(() => {
+    const map = new Map<string, typeof instruments[0]>();
+    for (const inst of instruments) map.set(inst.id, inst);
+    return map;
+  }, [instruments]);
 
   const pattern = patterns.find(p => p.id === currentPatternId)!;
   const [showTrackMenu, setShowTrackMenu] = useState<number | null>(null);
@@ -66,12 +193,10 @@ export default function StepGrid() {
 
     holdTimer.current = setTimeout(() => {
       holdTimer.current = null;
-      // Long press = open popup
       const rect = (e.target as HTMLElement).getBoundingClientRect();
       setPopup({ ti, si, x: rect.left, y: rect.top, mode: 'velocity' });
     }, 380);
 
-    // Start drag-paint
     dragState.current = { painting: true, activating: !isActive };
   }, []);
 
@@ -81,7 +206,6 @@ export default function StepGrid() {
     si: number,
   ) => {
     if (!dragState.current?.painting) return;
-    // cancel hold timer on drag
     if (holdTimer.current) { clearTimeout(holdTimer.current); holdTimer.current = null; }
     const s = useSequencerStore.getState();
     const pat = s.patterns.find(p => p.id === s.currentPatternId);
@@ -89,8 +213,7 @@ export default function StepGrid() {
     if (!step) return;
     if (step.active !== dragState.current.activating) {
       toggleStep(ti, si);
-      // Preview sound when activating
-      if (dragState.current.activating && previewOnStepToggle) {
+      if (dragState.current.activating && s.previewOnStepToggle) {
         const inst = s.instruments.find(i => i.id === pat?.tracks[ti]?.instrumentId);
         if (inst) {
           const ctx = getAudioContext();
@@ -99,7 +222,7 @@ export default function StepGrid() {
         }
       }
     }
-  }, [toggleStep, previewOnStepToggle]);
+  }, [toggleStep]);
 
   const handleStepPointerUp = useCallback((
     _evt: React.PointerEvent,
@@ -110,20 +233,18 @@ export default function StepGrid() {
     if (holdTimer.current) {
       clearTimeout(holdTimer.current);
       holdTimer.current = null;
-      // Short tap = toggle
       toggleStep(ti, si);
-      // Preview: play when the step is now active
       const s = useSequencerStore.getState();
       const pat = s.patterns.find(p => p.id === s.currentPatternId);
       const step = pat?.tracks[ti]?.steps[si];
       const inst = s.instruments.find(i => i.id === pat?.tracks[ti]?.instrumentId);
-      if (inst && step && previewOnStepToggle) {
+      if (inst && step && s.previewOnStepToggle) {
         const ctx = getAudioContext();
         if (ctx.state === 'suspended') ctx.resume();
         if (step.active) playInstrument(inst, step.velocity, step.accent, 0, step.note);
       }
     }
-  }, [toggleStep, previewOnStepToggle]);
+  }, [toggleStep]);
 
   const handleStepPointerCancel = useCallback(() => {
     dragState.current = null;
@@ -228,36 +349,11 @@ export default function StepGrid() {
       })()}
 
       {/* ── Step number header ── */}
-      <div className="flex items-center mb-0.5">
-        <div className="w-24 sm:w-28 shrink-0" />
-        <div className="flex gap-0.5 flex-1 min-w-0">
-          {Array.from({ length: pattern.stepCount }, (_, si) => {
-            const isBar = si % GROUP === 0;
-            const isCurrent = si === currentStep && isPlaying;
-            return (
-              <div
-                key={si}
-                className={`flex-1 text-center text-[8px] sm:text-[9px] font-mono leading-none py-0.5 transition-all ${
-                  isBar ? 'ml-0.5 sm:ml-1' : ''
-                } ${
-                  isCurrent
-                    ? 'text-white font-bold'
-                    : isBar
-                    ? 'text-gray-600'
-                    : 'text-gray-800'
-                }`}
-              >
-                {isBar ? (si / GROUP + 1) : '·'}
-              </div>
-            );
-          })}
-        </div>
-        <div className="w-8 sm:w-10 shrink-0" />
-      </div>
+      <StepHeader stepCount={pattern.stepCount} currentStep={currentStep} isPlaying={isPlaying} />
 
       {/* ── Tracks ── */}
       {pattern.tracks.map((track, ti) => {
-        const inst = instruments.find(i => i.id === track.instrumentId);
+        const inst = instMap.get(track.instrumentId);
         if (!inst) return null;
         const muted = inst.muted;
         const soloed = soloedTrackIndex === ti;
@@ -267,7 +363,7 @@ export default function StepGrid() {
         return (
           <div
             key={track.instrumentId}
-            className={`flex items-center gap-0.5 sm:gap-1 transition-opacity duration-200 ${dimmed ? 'opacity-20' : ''}`}
+            className={`flex items-center gap-0.5 sm:gap-1 ${dimmed ? 'opacity-20' : ''}`}
           >
             {/* Instrument label */}
             <div className="w-24 sm:w-28 shrink-0 flex items-center gap-1">
@@ -303,59 +399,24 @@ export default function StepGrid() {
 
             {/* Steps */}
             <div className="flex gap-0.5 flex-1 min-w-0">
-              {track.steps.map((step, si) => {
-                const isActive = step.active;
-                const isCurrent = si === currentStep && isPlaying;
-                const isGroupStart = si % GROUP === 0 && si !== 0;
-                const velH = Math.round(step.velocity * 100);
-
-                return (
-                  <button
-                    key={si}
-                    onPointerDown={e => handleStepPointerDown(e, ti, si, isActive)}
-                    onPointerEnter={e => handleStepPointerEnter(e, ti, si)}
-                    onPointerUp={e => handleStepPointerUp(e, ti, si)}
-                    onPointerCancel={handleStepPointerCancel}
-                    className={`relative flex-1 h-8 sm:h-9 rounded-sm sm:rounded transition-all select-none touch-none ${
-                      isGroupStart ? 'ml-0.5 sm:ml-1' : ''
-                    } ${isCurrent && !isActive ? 'ring-1 ring-inset ring-white/30' : ''}`}
-                    style={{
-                      backgroundColor: isActive
-                        ? inst.color
-                        : (Math.floor(si / GROUP) % 2 === 0 ? '#1e293b' : '#172033'),
-                      opacity: muted ? 0.3 : isActive ? Math.max(0.35, step.velocity) : 0.9,
-                      boxShadow: isCurrent && isActive
-                        ? `0 0 16px ${inst.color}cc, 0 0 5px ${inst.color}`
-                        : isActive
-                        ? `0 0 5px ${inst.color}66`
-                        : undefined,
-                      transform: isCurrent ? 'scaleY(1.08)' : undefined,
-                    }}
-                  >
-                    {/* Velocity bar at bottom */}
-                    {isActive && (
-                      <div
-                        className="absolute bottom-0 left-0 right-0 rounded-b"
-                        style={{
-                          height: `${velH}%`,
-                          background: `linear-gradient(to top, ${inst.color}cc, transparent)`,
-                          opacity: 0.4,
-                        }}
-                      />
-                    )}
-                    {/* Accent star */}
-                    {step.accent && isActive && (
-                      <span className="absolute inset-0 flex items-center justify-center text-[8px] text-black/60 font-black pointer-events-none leading-none">★</span>
-                    )}
-                    {/* Note indicator (if non-zero) */}
-                    {isActive && step.note !== 0 && (
-                      <span
-                        className="absolute bottom-0.5 right-0.5 text-[6px] font-mono font-bold text-black/50 leading-none pointer-events-none"
-                      >{step.note > 0 ? `+${step.note}` : step.note}</span>
-                    )}
-                  </button>
-                );
-              })}
+              {track.steps.map((step, si) => (
+                <StepButton
+                  key={si}
+                  ti={ti}
+                  si={si}
+                  isActive={step.active}
+                  velocity={step.velocity}
+                  accent={step.accent}
+                  note={step.note}
+                  isCurrent={si === currentStep && isPlaying}
+                  instColor={inst.color}
+                  muted={muted}
+                  onPointerDown={handleStepPointerDown}
+                  onPointerEnter={handleStepPointerEnter}
+                  onPointerUp={handleStepPointerUp}
+                  onPointerCancel={handleStepPointerCancel}
+                />
+              ))}
             </div>
 
             {/* Track menu button */}

@@ -38,7 +38,11 @@ interface ActiveNote {
 }
 
 export default function Keyboard() {
-  const { instruments, keyboardEnabled, keyboardInstrumentId, setKeyboardEnabled, setKeyboardInstrument } = useSequencerStore();
+  const instruments = useSequencerStore(s => s.instruments);
+  const keyboardEnabled = useSequencerStore(s => s.keyboardEnabled);
+  const keyboardInstrumentId = useSequencerStore(s => s.keyboardInstrumentId);
+  const setKeyboardEnabled = useSequencerStore(s => s.setKeyboardEnabled);
+  const setKeyboardInstrument = useSequencerStore(s => s.setKeyboardInstrument);
   const [activeNotes, setActiveNotes] = useState<Map<string, ActiveNote>>(new Map());
   const activeNotesRef = useRef(activeNotes);
 

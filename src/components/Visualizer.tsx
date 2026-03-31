@@ -1,10 +1,10 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useState, memo } from 'react';
 import { getAudioContext, getMasterGain } from '../audio/synth';
 import { useSequencerStore } from '../store/sequencerStore';
 
 type Mode = 'spectrum' | 'waveform' | 'bars';
 
-export default function Visualizer() {
+export default memo(function Visualizer() {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const animRef = useRef<number>(0);
   const analyserRef = useRef<AnalyserNode | null>(null);
@@ -13,7 +13,8 @@ export default function Visualizer() {
   const peaksRef = useRef<Float32Array | null>(null);
   const peakDecayRef = useRef<number[]>([]);
 
-  const { isPlaying, currentStep, instruments } = useSequencerStore();
+  const isPlaying = useSequencerStore(s => s.isPlaying);
+  const currentStep = useSequencerStore(s => s.currentStep);
   const isPlayingRef = useRef(isPlaying);
   const currentStepRef = useRef(currentStep);
   isPlayingRef.current = isPlaying;
@@ -46,9 +47,18 @@ export default function Visualizer() {
 
 
     let frame = 0;
+    let lastDrawTime = 0;
+    const TARGET_FPS = 30;
+    const FRAME_INTERVAL = 1000 / TARGET_FPS;
 
-    const draw = () => {
+    const draw = (timestamp: number) => {
       animRef.current = requestAnimationFrame(draw);
+
+      // Throttle to ~30fps
+      const elapsed = timestamp - lastDrawTime;
+      if (elapsed < FRAME_INTERVAL) return;
+      lastDrawTime = timestamp - (elapsed % FRAME_INTERVAL);
+
       frame++;
 
       const W = canvas.width;
@@ -132,7 +142,7 @@ export default function Visualizer() {
         }
 
       } else if (m === 'spectrum') {
-        // Smooth gradient spectrum
+        // Smooth spectrum
         const n = freqData.length;
         const barW2 = W / n * 1.8;
         let x = 0;
@@ -140,10 +150,7 @@ export default function Visualizer() {
           const v = freqData[i] / 255;
           const barH = v * H;
           const hue = 120 + v * 200;
-          const gradient = ctx2d.createLinearGradient(x, H - barH, x, H);
-          gradient.addColorStop(0, `hsla(${hue}, 100%, ${50 + v * 30}%, 0.9)`);
-          gradient.addColorStop(1, `hsla(${hue}, 100%, 30%, 0.2)`);
-          ctx2d.fillStyle = gradient;
+          ctx2d.fillStyle = `hsla(${hue}, 100%, ${50 + v * 30}%, 0.8)`;
           ctx2d.fillRect(x, H - barH, barW2, barH);
           x += barW2 + 0.5;
         }
@@ -163,22 +170,7 @@ export default function Visualizer() {
         const n = timeData.length;
         const sliceW = W / n;
 
-        // Glow effect
-        ctx2d.shadowColor = '#4ade80';
-        ctx2d.shadowBlur = 8;
-        ctx2d.strokeStyle = '#4ade8088';
-        ctx2d.lineWidth = 1;
-        ctx2d.beginPath();
-        for (let i = 0; i < n; i++) {
-          const v = timeData[i] / 128 - 1;
-          const x = i * sliceW;
-          const y = (v * H * 0.42) + H / 2;
-          i === 0 ? ctx2d.moveTo(x, y) : ctx2d.lineTo(x, y);
-        }
-        ctx2d.stroke();
-
         // Main line
-        ctx2d.shadowBlur = 0;
         ctx2d.strokeStyle = '#4ade80';
         ctx2d.lineWidth = 1.5;
         ctx2d.beginPath();
@@ -200,7 +192,7 @@ export default function Visualizer() {
         ctx2d.stroke();
 
         // Instrument level meters on right
-        const activeInsts = instruments.slice(0, 8);
+        const activeInsts = useSequencerStore.getState().instruments.slice(0, 8);
         activeInsts.forEach((inst, idx) => {
           const energy = freqData[Math.floor(idx * 8)] / 255;
           const mh = H / activeInsts.length;
@@ -237,9 +229,9 @@ export default function Visualizer() {
       }
     };
 
-    draw();
+    draw(0);
     return () => cancelAnimationFrame(animRef.current);
-  }, [instruments]);
+  }, []);
 
   return (
     <div className="relative">
@@ -266,4 +258,4 @@ export default function Visualizer() {
       </div>
     </div>
   );
-}
+});

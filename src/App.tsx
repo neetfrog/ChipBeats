@@ -15,7 +15,14 @@ function LoadingPlaceholder() {
 
 export default function App() {
   const [showModal, setShowModal] = useState(false);
-  const { showEditor, isPlaying, editingInstrumentId, setShowEditor, setActiveEditorTab, setEditingInstrument, visualizerVisible, themeMode } = useSequencerStore();
+  const showEditor = useSequencerStore(s => s.showEditor);
+  const isPlaying = useSequencerStore(s => s.isPlaying);
+  const editingInstrumentId = useSequencerStore(s => s.editingInstrumentId);
+  const setShowEditor = useSequencerStore(s => s.setShowEditor);
+  const setActiveEditorTab = useSequencerStore(s => s.setActiveEditorTab);
+  const setEditingInstrument = useSequencerStore(s => s.setEditingInstrument);
+  const visualizerVisible = useSequencerStore(s => s.visualizerVisible);
+  const themeMode = useSequencerStore(s => s.themeMode);
 
   const theme = getTheme(themeMode);
 
@@ -46,28 +53,35 @@ export default function App() {
         color: theme.colors.text,
       }}
     >
-      {/* CRT Scanlines */}
+      {/* CRT Scanlines - lightweight */}
       {theme.scanlines && (
         <div
           className="fixed inset-0 pointer-events-none z-50"
           style={{
             opacity: 0.018,
             backgroundImage: 'repeating-linear-gradient(0deg, rgba(0,0,0,0.7) 0px, rgba(0,0,0,0.9) 1px, transparent 1px, transparent 3px)',
+            willChange: 'auto',
           }}
         />
       )}
 
-      {/* Ambient glow background */}
+      {/* Ambient glow background - simplified */}
       <div className="fixed inset-0 pointer-events-none z-0 overflow-hidden">
         <div
-          className={`absolute -top-40 left-1/2 -translate-x-1/2 w-[700px] h-[350px] rounded-full blur-[130px] transition-all duration-1000 ${
+          className={`absolute -top-40 left-1/2 -translate-x-1/2 w-[700px] h-[350px] rounded-full ${
             isPlaying ? 'opacity-25' : 'opacity-8'
           }`}
-          style={{ background: 'radial-gradient(ellipse, #6d28d9 0%, #0e7490 50%, transparent 70%)' }}
+          style={{
+            background: 'radial-gradient(ellipse, #6d28d9 0%, #0e7490 50%, transparent 70%)',
+            filter: 'blur(130px)',
+          }}
         />
         <div
-          className="absolute bottom-0 right-0 w-[400px] h-[200px] rounded-full blur-[100px] opacity-10"
-          style={{ background: 'radial-gradient(ellipse, #ec4899 0%, transparent 70%)' }}
+          className="absolute bottom-0 right-0 w-[400px] h-[200px] rounded-full opacity-10"
+          style={{
+            background: 'radial-gradient(ellipse, #ec4899 0%, transparent 70%)',
+            filter: 'blur(100px)',
+          }}
         />
       </div>
 
@@ -76,9 +90,9 @@ export default function App() {
 
         {/* ── Sticky Transport ── */}
         <div
-          className="sticky top-0 z-30 backdrop-blur-xl shadow-2xl"
+          className="sticky top-0 z-30 shadow-2xl"
           style={{
-            backgroundColor: theme.colors.bgSecondary + 'dd',
+            backgroundColor: theme.colors.bgSecondary + 'f8',
             borderBottom: `1px solid ${theme.colors.border}`,
           }}
         >

@@ -21,6 +21,13 @@ let schedulerTimer: ReturnType<typeof setInterval> | null = null;
 let nextStepTime = 0;
 let internalStep = 0;
 
+// ── Debounced save ───────────────────────────────────────────────────────────
+let _saveTimer: ReturnType<typeof setTimeout> | null = null;
+function debouncedSave(state: SequencerState) {
+  if (_saveTimer) clearTimeout(_saveTimer);
+  _saveTimer = setTimeout(() => { saveState(state); }, 300);
+}
+
 function getStepDuration(bpm: number, swing: number, step: number): number {
   const base = 60 / bpm / 4; // 16th note
   const clampedSwing = Math.max(0, Math.min(1, swing));
@@ -191,6 +198,10 @@ export const useSequencerStore = create<Store>((set, get) => ({
     nextStepTime = ctx.currentTime + 0.05;
     set({ isPlaying: true, currentStep: 0 });
 
+    // Build instrument lookup map for O(1) access in hot loop
+    let instMap = new Map<string, import('../types').InstrumentParams>();
+    for (const inst of state.instruments) instMap.set(inst.id, inst);
+
     schedulerTimer = setInterval(() => {
       const s = get();
       const pattern = s.patterns.find(p => p.id === s.currentPatternId)!;
@@ -198,18 +209,25 @@ export const useSequencerStore = create<Store>((set, get) => ({
       const lookahead = 0.12;
       const ctxNow = getAudioContext().currentTime;
 
+      // Rebuild instrument map only when instruments change (reference check)
+      if (s.instruments !== state.instruments) {
+        instMap = new Map<string, import('../types').InstrumentParams>();
+        for (const inst of s.instruments) instMap.set(inst.id, inst);
+      }
+
       while (nextStepTime < ctxNow + lookahead) {
         const step = internalStep % pattern.stepCount;
 
-        pattern.tracks.forEach((track, tIdx) => {
-          const inst = s.instruments.find(i => i.id === track.instrumentId);
-          if (!inst || inst.muted) return;
-          if (s.soloedTrackIndex !== null && s.soloedTrackIndex !== tIdx) return;
+        for (let tIdx = 0; tIdx < pattern.tracks.length; tIdx++) {
+          const track = pattern.tracks[tIdx];
+          const inst = instMap.get(track.instrumentId);
+          if (!inst || inst.muted) continue;
+          if (s.soloedTrackIndex !== null && s.soloedTrackIndex !== tIdx) continue;
           const stepData = track.steps[step];
           if (stepData?.active) {
             playInstrument(inst, stepData.velocity, stepData.accent, nextStepTime, stepData.note);
           }
-        });
+        }
 
         const uiStep = step;
         const delay = Math.max(0, (nextStepTime - ctxNow) * 1000);
@@ -227,7 +245,7 @@ export const useSequencerStore = create<Store>((set, get) => ({
           }
         }
       }
-    }, 20);
+    }, 25);
   },
 
   pause: () => {
@@ -307,7 +325,7 @@ export const useSequencerStore = create<Store>((set, get) => ({
       })),
     };
     set({ patterns: [...s.patterns, newPat], currentPatternId: newId });
-    get().saveToStorage();
+    debouncedSave(get() as SequencerState);
   },
 
   duplicatePattern: (id) => {
@@ -326,7 +344,7 @@ export const useSequencerStore = create<Store>((set, get) => ({
     const updated = [...s.patterns];
     updated.splice(idx + 1, 0, clone);
     set({ patterns: updated, currentPatternId: newId });
-    get().saveToStorage();
+    debouncedSave(get() as SequencerState);
   },
 
   deletePattern: (id) => {
@@ -338,12 +356,12 @@ export const useSequencerStore = create<Store>((set, get) => ({
       patterns: remaining,
       currentPatternId: s.currentPatternId === id ? remaining[0].id : s.currentPatternId,
     });
-    get().saveToStorage();
+    debouncedSave(get() as SequencerState);
   },
 
   renamePattern: (id, name) => {
     set(s => ({ patterns: s.patterns.map(p => p.id === id ? { ...p, name } : p) }));
-    get().saveToStorage();
+    debouncedSave(get() as SequencerState);
   },
 
   setStepCount: (count) => {
@@ -361,7 +379,7 @@ export const useSequencerStore = create<Store>((set, get) => ({
         };
       }),
     }));
-    get().saveToStorage();
+    debouncedSave(get() as SequencerState);
   },
 
   setSwing: (swing) => {
@@ -369,7 +387,7 @@ export const useSequencerStore = create<Store>((set, get) => ({
     set(s => ({
       patterns: s.patterns.map(p => p.id === s.currentPatternId ? { ...p, swing } : p),
     }));
-    get().saveToStorage();
+    debouncedSave(get() as SequencerState);
   },
 
   // ── Steps ─────────────────────────────────────────────────────────────────
@@ -568,7 +586,7 @@ export const useSequencerStore = create<Store>((set, get) => ({
     set(s => ({
       instruments: s.instruments.map(i => i.id === id ? { ...i, ...updates } : i),
     }));
-    get().saveToStorage();
+    debouncedSave(get() as SequencerState);
   },
 
   addInstrument: (inst) => {
@@ -589,7 +607,7 @@ export const useSequencerStore = create<Store>((set, get) => ({
         })),
       };
     });
-    get().saveToStorage();
+    debouncedSave(get() as SequencerState);
   },
 
   removeInstrument: (id) => {
@@ -604,7 +622,7 @@ export const useSequencerStore = create<Store>((set, get) => ({
       })),
       editingInstrumentId: s.editingInstrumentId === id ? null : s.editingInstrumentId,
     }));
-    get().saveToStorage();
+    debouncedSave(get() as SequencerState);
   },
 
   previewInstrument: (id) => {
@@ -658,7 +676,7 @@ export const useSequencerStore = create<Store>((set, get) => ({
   setSoundPack: (pack) => {
     const adjustedInstruments = applySoundPack(DEFAULT_INSTRUMENTS.map(i => ({ ...i })), pack);
     set({ currentSoundPack: pack, instruments: adjustedInstruments });
-    get().saveToStorage();
+    debouncedSave(get() as SequencerState);
   },
 
   // ── UI ───────────────────────────────────────────────────────────────────
@@ -666,23 +684,23 @@ export const useSequencerStore = create<Store>((set, get) => ({
   setActiveEditorTab: (tab) => set({ activeEditorTab: tab }),
   setThemeMode: (mode) => {
     set({ themeMode: mode });
-    get().saveToStorage();
+    debouncedSave(get() as SequencerState);
   },
   setPreviewOnStepToggle: (on) => {
     set({ previewOnStepToggle: on });
-    get().saveToStorage();
+    debouncedSave(get() as SequencerState);
   },
   setVisualizerVisible: (show) => {
     set({ visualizerVisible: show });
-    get().saveToStorage();
+    debouncedSave(get() as SequencerState);
   },
   setKeyboardEnabled: (enabled) => {
     set({ keyboardEnabled: enabled });
-    get().saveToStorage();
+    debouncedSave(get() as SequencerState);
   },
   setKeyboardInstrument: (id) => {
     set({ keyboardInstrumentId: id });
-    get().saveToStorage();
+    debouncedSave(get() as SequencerState);
   },
 
   // ── History ───────────────────────────────────────────────────────────────
@@ -754,7 +772,7 @@ export const useSequencerStore = create<Store>((set, get) => ({
     const s = get();
     const presets = makePresetPatterns(s.instruments);
     set({ patterns: [...s.patterns, ...presets] });
-    get().saveToStorage();
+    debouncedSave(get() as SequencerState);
   },
 
   applyPatternPreset: (presetId: string) => {
@@ -782,7 +800,7 @@ export const useSequencerStore = create<Store>((set, get) => ({
     newPatterns[activePatternIndex] = updatedPattern;
 
     set({ patterns: newPatterns });
-    get().saveToStorage();
+    debouncedSave(get() as SequencerState);
   },
 
   // ── Import / Export ───────────────────────────────────────────────────────
@@ -800,7 +818,7 @@ export const useSequencerStore = create<Store>((set, get) => ({
       currentStep: -1,
       isPlaying: false,
     });
-    get().saveToStorage();
+    debouncedSave(get() as SequencerState);
   },
 
   getProjectExportData: () => {

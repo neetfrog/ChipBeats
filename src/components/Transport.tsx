@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, memo } from 'react';
 import { useSequencerStore } from '../store/sequencerStore';
 import { makePresetPatterns } from '../audio/presets';
 import { downloadProject, loadProjectFile } from '../utils/projectExport';
@@ -6,20 +6,52 @@ import { downloadProject, loadProjectFile } from '../utils/projectExport';
 const BPM_MIN = 40;
 const BPM_MAX = 300;
 
-export default function Transport() {
-  const {
-    bpm, isPlaying, masterVolume, masterCompressor, themeMode, currentSoundPack,
-    previewOnStepToggle, setPreviewOnStepToggle, visualizerVisible, setVisualizerVisible,
-    play, pause, stop, setBpm, tapTempo, setMasterVolume, toggleCompressor,
-    patterns, currentPatternId, queuedPatternId, setCurrentPattern,
-    addPattern, duplicatePattern, deletePattern, renamePattern,
-    setStepCount, setSwing, setThemeMode, setSoundPack,
-    undo, redo, past, future,
-    resetAll, saveToStorage, loadPresetPatterns, applyPatternPreset,
-    showEditor, setShowEditor,
-    instruments, setEditingInstrument, setActiveEditorTab,
-    importProject, getProjectExportData,
-  } = useSequencerStore();
+export default memo(function Transport() {
+  // Split selectors for granular re-renders
+  const bpm = useSequencerStore(s => s.bpm);
+  const isPlaying = useSequencerStore(s => s.isPlaying);
+  const masterVolume = useSequencerStore(s => s.masterVolume);
+  const masterCompressor = useSequencerStore(s => s.masterCompressor);
+  const themeMode = useSequencerStore(s => s.themeMode);
+  const currentSoundPack = useSequencerStore(s => s.currentSoundPack);
+  const previewOnStepToggle = useSequencerStore(s => s.previewOnStepToggle);
+  const visualizerVisible = useSequencerStore(s => s.visualizerVisible);
+  const patterns = useSequencerStore(s => s.patterns);
+  const currentPatternId = useSequencerStore(s => s.currentPatternId);
+  const queuedPatternId = useSequencerStore(s => s.queuedPatternId);
+  const past = useSequencerStore(s => s.past);
+  const future = useSequencerStore(s => s.future);
+  const instruments = useSequencerStore(s => s.instruments);
+
+  // Stable action references
+  const setPreviewOnStepToggle = useSequencerStore(s => s.setPreviewOnStepToggle);
+  const setVisualizerVisible = useSequencerStore(s => s.setVisualizerVisible);
+  const play = useSequencerStore(s => s.play);
+  const pause = useSequencerStore(s => s.pause);
+  const stop = useSequencerStore(s => s.stop);
+  const setBpm = useSequencerStore(s => s.setBpm);
+  const tapTempo = useSequencerStore(s => s.tapTempo);
+  const setMasterVolume = useSequencerStore(s => s.setMasterVolume);
+  const toggleCompressor = useSequencerStore(s => s.toggleCompressor);
+  const setCurrentPattern = useSequencerStore(s => s.setCurrentPattern);
+  const addPattern = useSequencerStore(s => s.addPattern);
+  const duplicatePattern = useSequencerStore(s => s.duplicatePattern);
+  const deletePattern = useSequencerStore(s => s.deletePattern);
+  const renamePattern = useSequencerStore(s => s.renamePattern);
+  const setStepCount = useSequencerStore(s => s.setStepCount);
+  const setSwing = useSequencerStore(s => s.setSwing);
+  const setThemeMode = useSequencerStore(s => s.setThemeMode);
+  const setSoundPack = useSequencerStore(s => s.setSoundPack);
+  const undo = useSequencerStore(s => s.undo);
+  const redo = useSequencerStore(s => s.redo);
+  const resetAll = useSequencerStore(s => s.resetAll);
+  const saveToStorage = useSequencerStore(s => s.saveToStorage);
+  const applyPatternPreset = useSequencerStore(s => s.applyPatternPreset);
+  const setShowEditor = useSequencerStore(s => s.setShowEditor);
+  const setEditingInstrument = useSequencerStore(s => s.setEditingInstrument);
+  const setActiveEditorTab = useSequencerStore(s => s.setActiveEditorTab);
+  const importProject = useSequencerStore(s => s.importProject);
+  const getProjectExportData = useSequencerStore(s => s.getProjectExportData);
 
   const currentPattern = patterns.find(p => p.id === currentPatternId)!;
   const [renamingId, setRenamingId] = useState<string | null>(null);
@@ -383,4 +415,4 @@ export default function Transport() {
       </div>
     </div>
   );
-}
+});
