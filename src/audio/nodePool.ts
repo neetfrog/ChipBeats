@@ -9,6 +9,7 @@ export class NodePool {
   private filterPool: BiquadFilterNode[] = [];
   private pannerPool: StereoPannerNode[] = [];
   private delayPool: DelayNode[] = [];
+  private waveShaperPool: WaveShaperNode[] = [];
 
   constructor(ctx: AudioContext, initialSize: number = 16) {
     this.ctx = ctx;
@@ -21,6 +22,7 @@ export class NodePool {
       this.filterPool.push(this.ctx.createBiquadFilter());
       this.pannerPool.push(this.ctx.createStereoPanner());
       this.delayPool.push(this.ctx.createDelay(1.0));
+      this.waveShaperPool.push(this.ctx.createWaveShaper());
     }
   }
 
@@ -68,6 +70,16 @@ export class NodePool {
     return node;
   }
 
+  getWaveShaper(): WaveShaperNode {
+    let node = this.waveShaperPool.pop();
+    if (!node) {
+      node = this.ctx.createWaveShaper();
+    }
+    node.curve = null;
+    node.oversample = 'none';
+    return node;
+  }
+
   returnGain(node: GainNode) {
     node.disconnect();
     this.gainPool.push(node);
@@ -88,12 +100,20 @@ export class NodePool {
     this.delayPool.push(node);
   }
 
+  returnWaveShaper(node: WaveShaperNode) {
+    node.disconnect();
+    node.curve = null;
+    node.oversample = 'none';
+    this.waveShaperPool.push(node);
+  }
+
   // Drain pools to prevent memory leaks
   dispose() {
-    [...this.gainPool, ...this.filterPool, ...this.pannerPool, ...this.delayPool].forEach(n => n.disconnect());
+    [...this.gainPool, ...this.filterPool, ...this.pannerPool, ...this.delayPool, ...this.waveShaperPool].forEach(n => n.disconnect());
     this.gainPool = [];
     this.filterPool = [];
     this.pannerPool = [];
     this.delayPool = [];
+    this.waveShaperPool = [];
   }
 }

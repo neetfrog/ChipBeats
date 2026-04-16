@@ -107,7 +107,10 @@ function getBitCrusherCurve(bits: number): Float32Array<ArrayBuffer> {
 }
 
 // ─── Distortion wave shaper ──────────────────────────────────────────────────
-function getDistortionCurve(amount: number): Float32Array<ArrayBuffer> {
+const _distortionCache = new Map<number, Float32Array>();
+function getDistortionCurve(amount: number): Float32Array {
+  const key = Math.round(amount * 1000);
+  if (_distortionCache.has(key)) return _distortionCache.get(key)!;
   const n = 256;
   const buf = new ArrayBuffer(n * 4);
   const curve = new Float32Array(buf);
@@ -116,6 +119,7 @@ function getDistortionCurve(amount: number): Float32Array<ArrayBuffer> {
     const x = (i / n) * 2 - 1;
     curve[i] = k > 0 ? ((Math.PI + k) * x) / (Math.PI + k * Math.abs(x)) : x;
   }
+  _distortionCache.set(key, curve);
   return curve;
 }
 
@@ -182,13 +186,13 @@ export function playInstrument(
   filter.Q.value = Math.max(0.0001, inst.filterQ);
 
   // ── Bit crusher ──
-  const crusher = ctx.createWaveShaper();
+  const crusher = nodePool?.getWaveShaper() ?? ctx.createWaveShaper();
   crusher.curve = getBitCrusherCurve(Math.max(1, Math.min(16, inst.bitCrush)));
   crusher.oversample = '2x';
 
   // ── Distortion ──
-  const distortion = ctx.createWaveShaper();
-  if (inst.distortion > 0.01) {
+  const distortion = inst.distortion > 0.01 ? (nodePool?.getWaveShaper() ?? ctx.createWaveShaper()) : null;
+  if (distortion) {
     distortion.curve = getDistortionCurve(inst.distortion);
     distortion.oversample = '4x';
   }
@@ -224,8 +228,8 @@ export function playInstrument(
   // env → filter → crusher → distortion → panner → masterGain
   env.connect(filter);
   filter.connect(crusher);
-  crusher.connect(distortion.curve ? distortion : panner);
-  if (inst.distortion > 0.01) distortion.connect(panner);
+  crusher.connect(distortion ? distortion : panner);
+  if (distortion) distortion.connect(panner);
   panner.connect(mg);
 
   const stopAll = (nodes: AudioScheduledSourceNode[]) => {
@@ -235,7 +239,7 @@ export function playInstrument(
   const releaseNodes = () => {
     const cleanupDelay = Math.max(0, (t3 - ctx.currentTime) * 1000 + 120);
     const keepAlive: AudioNode[] = [env, panner, filter, crusher];
-    if (distortion.curve) keepAlive.push(distortion);
+    if (distortion) keepAlive.push(distortion);
     if (revSend) keepAlive.push(revSend);
     if (dly) keepAlive.push(dly);
     if (dlyFb) keepAlive.push(dlyFb);
@@ -247,6 +251,8 @@ export function playInstrument(
         nodePool.returnGain(env);
         nodePool.returnPanner(panner);
         nodePool.returnFilter(filter);
+        nodePool.returnWaveShaper(crusher);
+        if (distortion) nodePool.returnWaveShaper(distortion);
         if (revSend) nodePool.returnGain(revSend);
         if (dlyFb) nodePool.returnGain(dlyFb);
         if (dlySend) nodePool.returnGain(dlySend);
