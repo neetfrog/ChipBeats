@@ -1,10 +1,12 @@
 import { InstrumentParams } from '../types';
+import { NodePool } from './nodePool';
 
 let audioCtx: AudioContext | null = null;
 let masterGain: GainNode | null = null;
 let masterCompressor: DynamicsCompressorNode | null = null;
 let reverbNode: ConvolverNode | null = null;
 let reverbGain: GainNode | null = null;
+let nodePool: NodePool | null = null;
 
 let analyserNode: AnalyserNode | null = null;
 
@@ -48,6 +50,7 @@ function _buildGraph() {
   masterGain.connect(reverbGain);
   reverbGain.connect(reverbNode);
   reverbNode.connect(analyserNode);
+  nodePool = new NodePool(ctx, 48);
 }
 
 /** Synthetic exponential decay reverb IR */
@@ -153,8 +156,7 @@ export function playInstrument(
   const t2 = t1 + Math.max(inst.decay, 0.001);             // end of decay
   const t3 = t2 + Math.max(inst.release, 0.001);           // end of release
 
-  // ── Envelope gain ──
-  const env = ctx.createGain();
+  const env = nodePool?.getGain() ?? ctx.createGain();
   env.gain.setValueAtTime(0.0001, t0);
   env.gain.linearRampToValueAtTime(vol, t1);
   env.gain.linearRampToValueAtTime(vol * Math.max(inst.sustain, 0.0001), t2);
@@ -162,11 +164,11 @@ export function playInstrument(
   env.gain.exponentialRampToValueAtTime(0.0001, t3);
 
   // ── Pan ──
-  const panner = ctx.createStereoPanner();
+  const panner = nodePool?.getPanner() ?? ctx.createStereoPanner();
   panner.pan.value = Math.max(-1, Math.min(1, inst.pan));
 
   // ── Filter ──
-  const filter = ctx.createBiquadFilter();
+  const filter = nodePool?.getFilter() ?? ctx.createBiquadFilter();
   filter.type = inst.filterType;
   const baseFilterFreq = Math.max(20, Math.min(20000, inst.filterFreq));
   filter.frequency.setValueAtTime(baseFilterFreq, t0);
@@ -192,20 +194,24 @@ export function playInstrument(
   }
 
   // ── Per-instrument reverb send ──
-  const revSend = ctx.createGain();
-  revSend.gain.value = inst.reverbMix;
+  let revSend: GainNode | null = null;
   if (reverbGain && inst.reverbMix > 0) {
+    revSend = nodePool?.getGain() ?? ctx.createGain();
+    revSend.gain.value = inst.reverbMix;
     env.connect(revSend);
     revSend.connect(reverbGain);
   }
 
   // ── Per-instrument delay ──
+  let dly: DelayNode | null = null;
+  let dlyFb: GainNode | null = null;
+  let dlySend: GainNode | null = null;
   if (inst.delayMix > 0.01) {
-    const dly = ctx.createDelay(1.0);
+    dly = nodePool?.getDelay() ?? ctx.createDelay(1.0);
     dly.delayTime.value = Math.max(0.01, inst.delayTime);
-    const dlyFb = ctx.createGain();
+    dlyFb = nodePool?.getGain() ?? ctx.createGain();
     dlyFb.gain.value = Math.min(0.92, inst.delayFeedback);
-    const dlySend = ctx.createGain();
+    dlySend = nodePool?.getGain() ?? ctx.createGain();
     dlySend.gain.value = inst.delayMix;
     env.connect(dlySend);
     dlySend.connect(dly);
@@ -226,6 +232,29 @@ export function playInstrument(
     nodes.forEach(n => { try { n.stop(t3 + 0.05); } catch {} });
   };
 
+  const releaseNodes = () => {
+    const cleanupDelay = Math.max(0, (t3 - ctx.currentTime) * 1000 + 120);
+    const keepAlive: AudioNode[] = [env, panner, filter, crusher];
+    if (distortion.curve) keepAlive.push(distortion);
+    if (revSend) keepAlive.push(revSend);
+    if (dly) keepAlive.push(dly);
+    if (dlyFb) keepAlive.push(dlyFb);
+    if (dlySend) keepAlive.push(dlySend);
+
+    setTimeout(() => {
+      keepAlive.forEach(node => { try { node.disconnect(); } catch {} });
+      if (nodePool) {
+        nodePool.returnGain(env);
+        nodePool.returnPanner(panner);
+        nodePool.returnFilter(filter);
+        if (revSend) nodePool.returnGain(revSend);
+        if (dlyFb) nodePool.returnGain(dlyFb);
+        if (dlySend) nodePool.returnGain(dlySend);
+        if (dly) nodePool.returnDelay(dly);
+      }
+    }, cleanupDelay);
+  };
+
   // ── Source(s) ──
   if (inst.wave === 'noise') {
     const nBuf = getNoiseBuffer(ctx);
@@ -235,9 +264,11 @@ export function playInstrument(
     src.connect(env);
     src.start(t0);
     src.stop(t3 + 0.05);
+    releaseNodes();
   } else if (inst.wave === 'pulse') {
     // Pulse wave = square with detune trick using two saws cancelling
     _playPulse(ctx, inst, noteOffset, t0, t3, env, vol);
+    releaseNodes();
   } else {
     const notes = inst.arpNotes.length > 0 ? inst.arpNotes : [noteOffset];
     const sources: OscillatorNode[] = [];
@@ -258,15 +289,19 @@ export function playInstrument(
           );
         }
         _applyVibrato(ctx, osc, inst, nt, t3);
-        const noteGate = ctx.createGain();
+        const noteGate = nodePool?.getGain() ?? ctx.createGain();
         noteGate.gain.setValueAtTime(1, nt);
         noteGate.gain.setValueAtTime(0.001, nt + inst.arpSpeed * 0.85);
         osc.connect(noteGate);
         noteGate.connect(env);
         osc.start(nt);
         sources.push(osc);
+        if (nodePool) {
+          setTimeout(() => { try { noteGate.disconnect(); nodePool?.returnGain(noteGate); } catch {} }, Math.max(0, (t3 - ctx.currentTime) * 1000 + 120));
+        }
       });
       stopAll(sources);
+      releaseNodes();
     } else {
       // Possibly stacked oscillators (chord = arpNotes played simultaneously)
       const playNotes = inst.arpNotes.length > 0 ? inst.arpNotes : [noteOffset];
@@ -289,19 +324,23 @@ export function playInstrument(
         sources.push(osc);
       });
       stopAll(sources);
+      releaseNodes();
     }
   }
 
   // ── Tremolo ──
   if (inst.tremoloDepth > 0 && inst.tremoloRate > 0) {
     const tremoloLFO = ctx.createOscillator();
-    const tremoloGain = ctx.createGain();
+    const tremoloGain = nodePool?.getGain() ?? ctx.createGain();
     tremoloLFO.frequency.value = inst.tremoloRate;
     tremoloGain.gain.value = inst.tremoloDepth * vol * 0.5;
     tremoloLFO.connect(tremoloGain);
     tremoloGain.connect(env.gain);
     tremoloLFO.start(t0);
     tremoloLFO.stop(t3 + 0.05);
+    if (nodePool) {
+      setTimeout(() => { try { tremoloGain.disconnect(); nodePool?.returnGain(tremoloGain); } catch {} }, Math.max(0, (t3 - ctx.currentTime) * 1000 + 120));
+    }
   }
 }
 
