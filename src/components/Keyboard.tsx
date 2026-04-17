@@ -5,41 +5,38 @@ import { cn } from '../utils/cn';
 
 // Map computer keyboard keys to semitone offsets from the base frequency
 const KEY_MAP: Record<string, number> = {
-  // Lower row (one octave lower): C D E F G A B
-  'z': -12,   'KeyZ': -12,
-  'x': -10,   'KeyX': -10,
-  'c': -8,    'KeyC': -8,
-  'v': -7,    'KeyV': -7,
-  'b': -5,    'KeyB': -5,
-  'n': -3,    'KeyN': -3,
-  'm': -1,    'KeyM': -1,
-  // Bottom row (C major): C D E F G A B
-  'a': 0,     'KeyA': 0,
-  's': 2,     'KeyS': 2,
-  'd': 4,     'KeyD': 4,
-  'f': 5,     'KeyF': 5,
-  'g': 7,     'KeyG': 7,
-  'h': 9,     'KeyH': 9,
-  'j': 11,    'KeyJ': 11,
-  // Top row (one octave higher): C D E F G A B
-  'q': 12,    'KeyQ': 12,
-  'w': 14,    'KeyW': 14,
-  'e': 16,    'KeyE': 16,
-  'r': 17,    'KeyR': 17,
-  't': 19,    'KeyT': 19,
-  'y': 21,    'KeyY': 21,
-  'u': 23,    'KeyU': 23,
+  // Lower octave white keys
+  'z': 0,   'KeyZ': 0,
+  'x': 2,   'KeyX': 2,
+  'c': 4,   'KeyC': 4,
+  'v': 5,   'KeyV': 5,
+  'b': 7,   'KeyB': 7,
+  'n': 9,   'KeyN': 9,
+  'm': 11,  'KeyM': 11,
+  // Middle octave white keys
+  'a': 12,  'KeyA': 12,
+  's': 14,  'KeyS': 14,
+  'd': 16,  'KeyD': 16,
+  'f': 17,  'KeyF': 17,
+  'g': 19,  'KeyG': 19,
+  'h': 21,  'KeyH': 21,
+  'j': 23,  'KeyJ': 23,
+  // Upper octave white keys
+  'q': 24,  'KeyQ': 24,
+  'w': 26,  'KeyW': 26,
+  'e': 28,  'KeyE': 28,
+  'r': 29,  'KeyR': 29,
+  't': 31,  'KeyT': 31,
+  'y': 33,  'KeyY': 33,
+  'u': 35,  'KeyU': 35,
 };
 
 const PIANO_WHITE_KEYS = ['z', 'x', 'c', 'v', 'b', 'n', 'm', 'a', 's', 'd', 'f', 'g', 'h', 'j', 'q', 'w', 'e', 'r', 't', 'y', 'u'];
 
 const WHITE_KEY_WIDTH = 34;
 const WHITE_KEY_GAP = 4;
-const BLACK_KEY_WIDTH = 20;
-const BLACK_KEY_HEIGHT = 38;
 
 const NOTE_NAMES_12 = ['C', 'C#', 'D', 'D#', 'E', 'F', 'F#', 'G', 'G#', 'A', 'A#', 'B'];
-const NOTE_NAMES = ['C', 'D', 'E', 'F', 'G', 'A', 'B'];
 
 function getNoteNameFromOffset(offset: number): string {
   const normalized = ((offset % 12) + 12) % 12;
@@ -82,10 +79,11 @@ export default function Keyboard() {
   }, [activeNotes]);
 
   const playKey = (key: string, noteOffset: number) => {
-    if (!synthInstrument) return;
+    const instrument = synthInstrument;
+    if (!instrument) return;
     const newNote: ActiveNote = { key, note: noteOffset };
     setActiveNotes(map => new Map(map).set(key, newNote));
-    playInstrument(synthInstrument, 1, false, 0, noteOffset);
+    playInstrument(instrument, 1, false, 0, noteOffset);
     setTimeout(() => {
       setActiveNotes(map => {
         const n = new Map(map);
@@ -100,22 +98,25 @@ export default function Keyboard() {
 
     function handleKeyDown(e: KeyboardEvent) {
       if (e.repeat) return;
-      const rawKey = e.key.length === 1 ? e.key.toLowerCase() : e.code;
+      const rawKey = e.code || (e.key.length === 1 ? e.key.toLowerCase() : e.key);
       if (!KEY_MAP.hasOwnProperty(rawKey)) return;
       const noteOffset = KEY_MAP[rawKey];
-      const key = rawKey.startsWith('Key') ? rawKey.toLowerCase().slice(3) : rawKey;
+      const key = rawKey.startsWith('Key') ? rawKey.toLowerCase().slice(3) : rawKey.toLowerCase();
       if (activeNotesRef.current.has(key)) return; // Already playing
 
+      const instrument = synthInstrument;
+      if (!instrument) return;
       e.preventDefault();
 
       const newNote: ActiveNote = { key, note: noteOffset };
       setActiveNotes(map => new Map(map).set(key, newNote));
-      playInstrument(synthInstrument, 1, false, 0, noteOffset);
+      playInstrument(instrument, 1, false, 0, noteOffset);
     }
 
     function handleKeyUp(e: KeyboardEvent) {
-      const key = e.key.toLowerCase();
-      if (!KEY_MAP.hasOwnProperty(key)) return;
+      const rawKey = e.code || (e.key.length === 1 ? e.key.toLowerCase() : e.key);
+      if (!KEY_MAP.hasOwnProperty(rawKey)) return;
+      const key = rawKey.startsWith('Key') ? rawKey.toLowerCase().slice(3) : rawKey.toLowerCase();
 
       e.preventDefault();
       setActiveNotes(map => {
@@ -217,43 +218,13 @@ export default function Keyboard() {
                 );
               })}
 
-              {PIANO_WHITE_KEYS.map((lowerKey, idx) => {
-                const noteOffset = KEY_MAP[lowerKey];
-                const normalized = ((noteOffset % 12) + 12) % 12;
-                if (![0, 2, 5, 7, 9].includes(normalized) || idx === PIANO_WHITE_KEYS.length - 1) return null;
-                const blackOffset = noteOffset + 1;
-                const blackKeyId = `black-${idx}`;
-                const isActiveBlack = activeNotes.has(blackKeyId);
-                const blackNoteName = getNoteNameFromOffset(blackOffset);
-                return (
-                  <button
-                    key={blackKeyId}
-                    type="button"
-                    onClick={() => playKey(blackKeyId, blackOffset)}
-                    className={cn(
-                      'absolute rounded-b-xl bg-slate-950 text-[8px] text-white uppercase tracking-[0.12em] transition-all',
-                      isActiveBlack ? 'border border-slate-300' : 'hover:border-slate-400'
-                    )}
-                    style={{
-                      width: BLACK_KEY_WIDTH,
-                      left: idx * (WHITE_KEY_WIDTH + WHITE_KEY_GAP) + WHITE_KEY_WIDTH - BLACK_KEY_WIDTH / 2,
-                      height: BLACK_KEY_HEIGHT,
-                      top: 10,
-                      zIndex: 20,
-                    }}
-                    title={`${blackNoteName} (click to play)`}
-                  >
-                    {blackNoteName.replace(/([A-G])/,'$1#')}
-                  </button>
-                );
-              })}
             </div>
           </div>
         ) : (
           <>
-            {/* Lower row: Z-M */}
+            {/* Top row: Q-U */}
             <div className="flex gap-1.5 justify-center">
-              {['Z', 'X', 'C', 'V', 'B', 'N', 'M'].map((displayKey) => {
+              {['Q', 'W', 'E', 'R', 'T', 'Y', 'U'].map((displayKey) => {
                 const lowerKey = displayKey.toLowerCase();
                 const noteOffset = KEY_MAP[lowerKey];
                 const isActive = activeNotes.has(lowerKey);
@@ -287,9 +258,9 @@ export default function Keyboard() {
               })}
             </div>
 
-            {/* Top row: Q-U */}
+            {/* Lower row: Z-M */}
             <div className="flex gap-1.5 justify-center">
-              {['Q', 'W', 'E', 'R', 'T', 'Y', 'U'].map((displayKey) => {
+              {['Z', 'X', 'C', 'V', 'B', 'N', 'M'].map((displayKey) => {
                 const lowerKey = displayKey.toLowerCase();
                 const noteOffset = KEY_MAP[lowerKey];
                 const isActive = activeNotes.has(lowerKey);
@@ -309,7 +280,7 @@ export default function Keyboard() {
       </div>
       {/* Info */}
       <div className="px-3 pb-2 text-[8px] text-gray-700 text-center">
-        Press Z-M for lower octave, A-J for middle, and Q-U for higher octave • Three octaves of C major scale
+        Use Z/X/C/V/B/N/M for lower white keys and Q/W/E/R/T/Y/U for upper white keys.
       </div>
     </div>
   );
