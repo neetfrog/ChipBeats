@@ -204,7 +204,9 @@ export default function Keyboard() {
                     onClick={() => playKey(lowerKey, noteOffset)}
                     className={cn(
                       'absolute bottom-0 flex flex-col items-center justify-end rounded-b-xl border border-slate-300 bg-white text-slate-900 transition-all',
-                      isActive ? 'bg-slate-100 shadow-lg shadow-slate-400/30' : 'hover:bg-slate-100'
+                      isActive
+                        ? 'bg-slate-800 text-white border-slate-600 shadow-[0_0_0_4px_rgba(15,23,42,0.3)]'
+                        : 'hover:bg-slate-100'
                     )}
                     style={{
                       width: WHITE_KEY_WIDTH,
@@ -294,7 +296,7 @@ function KeyButton({ displayKey, noteOffset, isActive, onClick }: { displayKey: 
       className={cn(
         'w-9 h-14 rounded-lg border transition-all flex flex-col items-center justify-center',
         isActive
-          ? 'bg-purple-600 border-purple-400 shadow-lg shadow-purple-500/50 text-white cursor-pointer'
+          ? 'bg-indigo-500 border-indigo-300 shadow-lg shadow-indigo-500/30 text-white cursor-pointer ring-2 ring-indigo-400/40'
           : 'bg-gray-800 border-gray-700 hover:border-gray-600 text-gray-400 hover:text-gray-300 cursor-pointer'
       )}
       onClick={onClick}
