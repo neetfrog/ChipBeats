@@ -78,8 +78,9 @@ function ADSRPreview({ attack, decay, sustain, release, color }: {
 }
 
 // ── Wave shape preview ───────────────────────────────────────────────────────
-function WavePreview({ wave, color, pulseWidth = 0.5 }: { wave: WaveShape; color: string; pulseWidth?: number }) {
-  const W = 80, H = 32, cycles = 2;
+function WavePreview({ wave, color, pulseWidth = 0.5, frequency = 440 }: { wave: WaveShape; color: string; pulseWidth?: number; frequency: number }) {
+  const W = 80, H = 32;
+  const cycles = Math.max(1, Math.min(18, Math.round(frequency / 250)));
   const pts: [number, number][] = [];
   const n = 120;
   for (let i = 0; i <= n; i++) {
@@ -103,6 +104,7 @@ function WavePreview({ wave, color, pulseWidth = 0.5 }: { wave: WaveShape; color
       <rect width={W} height={H} fill="#0f172a" />
       <line x1="0" y1={H / 2} x2={W} y2={H / 2} stroke="#1f2937" strokeWidth="1" />
       <path d={d} fill="none" stroke={color} strokeWidth="1.5" strokeLinejoin="round" strokeLinecap="round" />
+      <text x={W - 4} y={H - 4} textAnchor="end" fontSize="7" fill="#9ca3af">{Math.round(frequency)}Hz</text>
     </svg>
   );
 }
@@ -402,7 +404,7 @@ export default function InstrumentEditor() {
                 </div>
                 {/* Wave preview */}
                 <div className="mt-2 flex justify-center">
-                  <WavePreview wave={inst.wave} color={inst.color} pulseWidth={inst.pulseWidth} />
+                  <WavePreview wave={inst.wave} color={inst.color} pulseWidth={inst.pulseWidth} frequency={inst.frequency} />
                 </div>
               </div>
               {inst.wave === 'pulse' && (
