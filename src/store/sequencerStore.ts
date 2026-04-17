@@ -20,6 +20,8 @@ let tapTimes: number[] = [];
 let schedulerTimer: ReturnType<typeof setInterval> | null = null;
 let nextStepTime = 0;
 let internalStep = 0;
+let previewLoopTimer: ReturnType<typeof setInterval> | null = null;
+let previewLoopInstrumentId: string | null = null;
 
 // ── Debounced save ───────────────────────────────────────────────────────────
 let _saveTimer: ReturnType<typeof setTimeout> | null = null;
@@ -104,7 +106,7 @@ interface Store extends SequencerState {
   updateInstrument: (id: string, updates: Partial<InstrumentParams>) => void;
   addInstrument: (inst: InstrumentParams) => void;
   removeInstrument: (id: string) => void;
-  previewInstrument: (id: string) => void;
+  previewInstrument: (id: string, repeat?: boolean) => boolean;
   setSoloTrack: (idx: number | null) => void;
   moveTrackUp: (idx: number) => void;
   moveTrackDown: (idx: number) => void;
@@ -625,13 +627,35 @@ export const useSequencerStore = create<Store>((set, get) => ({
     debouncedSave(get() as SequencerState);
   },
 
-  previewInstrument: (id) => {
+  previewInstrument: (id, repeat = false) => {
     const inst = get().instruments.find(i => i.id === id);
-    if (inst) {
-      const ctx = getAudioContext();
-      if (ctx.state === 'suspended') ctx.resume();
+    if (!inst) return false;
+    const ctx = getAudioContext();
+    if (ctx.state === 'suspended') ctx.resume();
+    if (repeat) {
+      if (previewLoopTimer !== null) {
+        window.clearInterval(previewLoopTimer);
+        previewLoopTimer = null;
+        previewLoopInstrumentId = null;
+        return false;
+      }
       playInstrument(inst, 1, false);
+      previewLoopInstrumentId = id;
+      previewLoopTimer = window.setInterval(() => {
+        const currentInst = get().instruments.find(i => i.id === previewLoopInstrumentId);
+        if (currentInst) {
+          playInstrument(currentInst, 1, false);
+        }
+      }, 250);
+      return true;
     }
+    if (previewLoopTimer !== null) {
+      window.clearInterval(previewLoopTimer);
+      previewLoopTimer = null;
+      previewLoopInstrumentId = null;
+    }
+    playInstrument(inst, 1, false);
+    return false;
   },
 
   setSoloTrack: (idx) => set({ soloedTrackIndex: idx }),

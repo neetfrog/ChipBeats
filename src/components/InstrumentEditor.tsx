@@ -27,9 +27,8 @@ const FILTER_ABBR: Record<string, string> = {
 };
 
 const COLORS = [
-  '#ef4444', '#f97316', '#eab308', '#84cc16', '#22c55e', '#10b981',
-  '#06b6d4', '#3b82f6', '#8b5cf6', '#ec4899', '#14b8a6', '#f43f5e',
-  '#a78bfa', '#34d399', '#fb923c', '#60a5fa', '#f472b6', '#fbbf24',
+  '#ef4444', '#f97316', '#eab308', '#22c55e',
+  '#06b6d4', '#3b82f6', '#8b5cf6', '#ec4899',
 ];
 const INSTRUMENT_TYPES: InstrumentType[] = [
   'kick', 'snare', 'hihat', 'openhat', 'clap', 'tom',
@@ -230,6 +229,8 @@ export default function InstrumentEditor() {
 
   // Get the default instrument for this type
   const defaultInst = inst ? DEFAULT_INSTRUMENTS.find(d => d.type === inst.type) : null;
+  const [previewRepeatMode, setPreviewRepeatMode] = useState(false);
+  const [previewLoopActive, setPreviewLoopActive] = useState(false);
 
   const upd = (k: keyof InstrumentParams, v: unknown) => {
     if (!inst) return;
@@ -238,12 +239,11 @@ export default function InstrumentEditor() {
 
   const handleResetToDefault = () => {
     if (!inst || !defaultInst) return;
-    if (!window.confirm(`Reset "${inst.name}" to default settings?`)) return;
     // Update all instrument params to default
     const updates: Partial<InstrumentParams> = {};
     (Object.keys(defaultInst) as (keyof InstrumentParams)[]).forEach(key => {
       if (key !== 'id' && key !== 'name' && key !== 'color') {
-        updates[key] = defaultInst[key];
+        updates[key] = defaultInst[key] as any;
       }
     });
     updateInstrument(inst.id, updates);
@@ -334,14 +334,32 @@ export default function InstrumentEditor() {
                 type="text"
                 value={inst.name}
                 onChange={e => upd('name', e.target.value.toUpperCase())}
-                className="flex-1 bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-white font-bold text-sm outline-none focus:border-purple-500"
+                className="w-full max-w-[180px] min-w-[120px] bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-white font-bold text-sm outline-none focus:border-purple-500"
                 maxLength={12}
               />
               <button
-                onClick={() => previewInstrument(inst.id)}
+                onClick={() => {
+                  const active = previewInstrument(inst.id, previewRepeatMode);
+                  setPreviewLoopActive(active);
+                }}
                 className="px-3 py-2 rounded-lg bg-gray-700 hover:bg-gray-600 text-white text-sm font-bold transition-all active:scale-90"
                 title="Preview"
               >▶</button>
+              <button
+                type="button"
+                onClick={() => {
+                  const next = !previewRepeatMode;
+                  setPreviewRepeatMode(next);
+                  if (!next && previewLoopActive && inst) {
+                    previewInstrument(inst.id, false);
+                    setPreviewLoopActive(false);
+                  }
+                }}
+                className={`px-3 py-2 rounded-lg text-sm font-bold transition-all ${previewRepeatMode ? 'bg-violet-600 text-white' : 'bg-gray-700 text-gray-200 hover:bg-gray-600'}`}
+                title="Toggle repeat preview"
+              >
+                {previewRepeatMode ? 'LOOP' : 'ONE'}
+              </button>
               <button
                 onClick={handleResetToDefault}
                 className="px-3 py-2 rounded-lg bg-orange-950 hover:bg-orange-800 text-orange-400 text-sm font-bold transition-all"
@@ -358,25 +376,18 @@ export default function InstrumentEditor() {
             </div>
 
             {/* Color picker */}
-            <div className="flex flex-wrap gap-1.5">
-              {COLORS.map(c => (
-                <button
-                  key={c}
-                  onClick={() => upd('color', c)}
-                  className={`w-6 h-6 rounded-full transition-all active:scale-90 ${inst.color === c ? 'ring-2 ring-white scale-110' : 'hover:scale-110'}`}
-                  style={{ backgroundColor: c }}
-                />
-              ))}
+            <div className="w-full flex justify-center overflow-x-auto py-1">
+              <div className="flex gap-1.5">
+                {COLORS.map(c => (
+                  <button
+                    key={c}
+                    onClick={() => upd('color', c)}
+                    className={`w-6 h-6 rounded-full flex-shrink-0 transition-all active:scale-90 ${inst.color === c ? 'ring-2 ring-white scale-110' : 'hover:scale-110'}`}
+                    style={{ backgroundColor: c }}
+                  />
+                ))}
+              </div>
             </div>
-
-            {/* ADSR preview */}
-            <ADSRPreview
-              attack={inst.attack}
-              decay={inst.decay}
-              sustain={inst.sustain}
-              release={inst.release}
-              color={inst.color}
-            />
 
             {/* ── Oscillator ── */}
             <Section title="Oscillator" color={inst.color}>
@@ -416,6 +427,15 @@ export default function InstrumentEditor() {
 
             {/* ── Envelope ── */}
             <Section title="Envelope" color="#22c55e">
+              <div className="w-full mb-3">
+                <ADSRPreview
+                  attack={inst.attack}
+                  decay={inst.decay}
+                  sustain={inst.sustain}
+                  release={inst.release}
+                  color={inst.color}
+                />
+              </div>
               <Knob label="Attack" value={inst.attack} min={0.001} max={2} step={0.001} decimals={3} unit="s" onChange={v => upd('attack', v)} color="#22c55e" defaultValue={defaultInst?.attack} />
               <Knob label="Decay" value={inst.decay} min={0.001} max={3} step={0.001} decimals={3} unit="s" onChange={v => upd('decay', v)} color="#22c55e" defaultValue={defaultInst?.decay} />
               <Knob label="Sustain" value={inst.sustain} min={0} max={1} step={0.01} decimals={2} onChange={v => upd('sustain', v)} color="#22c55e" defaultValue={defaultInst?.sustain} />
@@ -426,7 +446,7 @@ export default function InstrumentEditor() {
             <Section title="Filter" color="#06b6d4" defaultOpen={false}>
               <div className="w-full">
                 <p className="text-[8px] uppercase tracking-widest text-gray-500 mb-1.5">Type</p>
-                <div className="flex flex-wrap gap-1">
+                <div className="flex flex-wrap justify-center gap-1">
                   {FILTER_TYPES.map(ft => (
                     <button
                       key={ft}
