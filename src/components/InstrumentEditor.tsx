@@ -104,7 +104,6 @@ function WavePreview({ wave, color, pulseWidth = 0.5, frequency = 440 }: { wave:
       <rect width={W} height={H} fill="#0f172a" />
       <line x1="0" y1={H / 2} x2={W} y2={H / 2} stroke="#1f2937" strokeWidth="1" />
       <path d={d} fill="none" stroke={color} strokeWidth="1.5" strokeLinejoin="round" strokeLinecap="round" />
-      <text x={W - 4} y={H - 4} textAnchor="end" fontSize="7" fill="#9ca3af">{Math.round(frequency)}Hz</text>
     </svg>
   );
 }

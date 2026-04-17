@@ -5,30 +5,38 @@ import { cn } from '../utils/cn';
 
 // Map computer keyboard keys to semitone offsets from the base frequency
 const KEY_MAP: Record<string, number> = {
+  // Lower row (one octave lower): C D E F G A B
+  'z': -12,   'KeyZ': -12,
+  'x': -10,   'KeyX': -10,
+  'c': -8,    'KeyC': -8,
+  'v': -7,    'KeyV': -7,
+  'b': -5,    'KeyB': -5,
+  'n': -3,    'KeyN': -3,
+  'm': -1,    'KeyM': -1,
   // Bottom row (C major): C D E F G A B
-  'a': 0,     // C
-  's': 2,     // D
-  'd': 4,     // E
-  'f': 5,     // F
-  'g': 7,     // G
-  'h': 9,     // A
-  'j': 11,    // B
-  // Top row (one octave higher): C D E
-  'q': 12,    // C
-  'w': 14,    // D
-  'e': 16,    // E
-  'r': 17,    // F
-  't': 19,    // G
-  'y': 21,    // A
-  'u': 23,    // B
+  'a': 0,     'KeyA': 0,
+  's': 2,     'KeyS': 2,
+  'd': 4,     'KeyD': 4,
+  'f': 5,     'KeyF': 5,
+  'g': 7,     'KeyG': 7,
+  'h': 9,     'KeyH': 9,
+  'j': 11,    'KeyJ': 11,
+  // Top row (one octave higher): C D E F G A B
+  'q': 12,    'KeyQ': 12,
+  'w': 14,    'KeyW': 14,
+  'e': 16,    'KeyE': 16,
+  'r': 17,    'KeyR': 17,
+  't': 19,    'KeyT': 19,
+  'y': 21,    'KeyY': 21,
+  'u': 23,    'KeyU': 23,
 };
 
 const NOTE_NAMES = ['C', 'D', 'E', 'F', 'G', 'A', 'B'];
 
 function getNoteNameFromOffset(offset: number): string {
-  const base = offset % 12;
+  const normalized = ((offset % 12) + 12) % 12;
   const octave = Math.floor(offset / 12);
-  const noteIdx = [0, 2, 4, 5, 7, 9, 11].indexOf(base);
+  const noteIdx = [0, 2, 4, 5, 7, 9, 11].indexOf(normalized);
   return noteIdx >= 0 ? NOTE_NAMES[noteIdx] + octave : '?';
 }
 
@@ -83,15 +91,15 @@ export default function Keyboard() {
 
     function handleKeyDown(e: KeyboardEvent) {
       if (e.repeat) return;
-      const key = e.key.toLowerCase();
-      if (!KEY_MAP.hasOwnProperty(key)) return;
+      const rawKey = e.key.length === 1 ? e.key.toLowerCase() : e.code;
+      if (!KEY_MAP.hasOwnProperty(rawKey)) return;
+      const noteOffset = KEY_MAP[rawKey];
+      const key = rawKey.startsWith('Key') ? rawKey.toLowerCase().slice(3) : rawKey;
       if (activeNotesRef.current.has(key)) return; // Already playing
 
       e.preventDefault();
 
-      const noteOffset = KEY_MAP[key];
       const newNote: ActiveNote = { key, note: noteOffset };
-      
       setActiveNotes(map => new Map(map).set(key, newNote));
       playInstrument(synthInstrument, 1, false, 0, noteOffset);
     }
@@ -162,9 +170,27 @@ export default function Keyboard() {
 
       {/* Keys */}
       <div className="px-3 py-3 space-y-2">
-        {/* Bottom row: A-J */}
+          {/* Lower row: Z-M */}
         <div className="flex gap-1.5 justify-center">
-          {['A', 'S', 'D', 'F', 'G', 'H', 'J'].map((displayKey, idx) => {
+          {['Z', 'X', 'C', 'V', 'B', 'N', 'M'].map((displayKey) => {
+            const lowerKey = displayKey.toLowerCase();
+            const noteOffset = KEY_MAP[lowerKey];
+            const isActive = activeNotes.has(lowerKey);
+            return (
+              <KeyButton
+                key={lowerKey}
+                displayKey={displayKey}
+                noteOffset={noteOffset}
+                isActive={isActive}
+                onClick={() => playKey(lowerKey, noteOffset)}
+              />
+            );
+          })}
+        </div>
+
+        {/* Middle row: A-J */}
+        <div className="flex gap-1.5 justify-center">
+          {['A', 'S', 'D', 'F', 'G', 'H', 'J'].map((displayKey) => {
             const lowerKey = displayKey.toLowerCase();
             const noteOffset = KEY_MAP[lowerKey];
             const isActive = activeNotes.has(lowerKey);
@@ -182,7 +208,7 @@ export default function Keyboard() {
 
         {/* Top row: Q-U */}
         <div className="flex gap-1.5 justify-center">
-          {['Q', 'W', 'E', 'R', 'T', 'Y', 'U'].map((displayKey, idx) => {
+          {['Q', 'W', 'E', 'R', 'T', 'Y', 'U'].map((displayKey) => {
             const lowerKey = displayKey.toLowerCase();
             const noteOffset = KEY_MAP[lowerKey];
             const isActive = activeNotes.has(lowerKey);
@@ -201,7 +227,7 @@ export default function Keyboard() {
 
       {/* Info */}
       <div className="px-3 pb-2 text-[8px] text-gray-700 text-center">
-        Press keys A-J (and Q-U for higher octave) to play • Two octaves of C major scale
+        Press Z-M for lower octave, A-J for middle, and Q-U for higher octave • Three octaves of C major scale
       </div>
     </div>
   );
