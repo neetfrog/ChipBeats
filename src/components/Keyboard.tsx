@@ -31,13 +31,21 @@ const KEY_MAP: Record<string, number> = {
   'u': 23,    'KeyU': 23,
 };
 
+const PIANO_WHITE_KEYS = ['z', 'x', 'c', 'v', 'b', 'n', 'm', 'a', 's', 'd', 'f', 'g', 'h', 'j', 'q', 'w', 'e', 'r', 't', 'y', 'u'];
+
+const WHITE_KEY_WIDTH = 34;
+const WHITE_KEY_GAP = 4;
+const BLACK_KEY_WIDTH = 20;
+const BLACK_KEY_HEIGHT = 38;
+
+const NOTE_NAMES_12 = ['C', 'C#', 'D', 'D#', 'E', 'F', 'F#', 'G', 'G#', 'A', 'A#', 'B'];
 const NOTE_NAMES = ['C', 'D', 'E', 'F', 'G', 'A', 'B'];
 
 function getNoteNameFromOffset(offset: number): string {
   const normalized = ((offset % 12) + 12) % 12;
   const octave = Math.floor(offset / 12);
-  const noteIdx = [0, 2, 4, 5, 7, 9, 11].indexOf(normalized);
-  return noteIdx >= 0 ? NOTE_NAMES[noteIdx] + octave : '?';
+  const noteName = NOTE_NAMES_12[normalized] ?? '?';
+  return `${noteName}${octave}`;
 }
 
 interface ActiveNote {
@@ -53,6 +61,7 @@ export default function Keyboard() {
   const setKeyboardInstrument = useSequencerStore(s => s.setKeyboardInstrument);
   const [activeNotes, setActiveNotes] = useState<Map<string, ActiveNote>>(new Map());
   const activeNotesRef = useRef(activeNotes);
+  const [pianoView, setPianoView] = useState(false);
 
   // Get the selected keyboard instrument, or pick any available one
   const synthInstrument = keyboardInstrumentId
@@ -147,6 +156,16 @@ export default function Keyboard() {
           <h2 className="text-[10px] font-bold uppercase tracking-[0.18em] text-gray-500">
             Live Keyboard
           </h2>
+          <button
+            type="button"
+            onClick={() => setPianoView(value => !value)}
+            className={cn(
+              'px-2 py-1 rounded text-[9px] font-bold transition-colors',
+              pianoView ? 'bg-white text-slate-900' : 'bg-gray-700 text-gray-300 hover:bg-gray-600'
+            )}
+          >
+            {pianoView ? 'Keyboard View' : 'Piano View'}
+          </button>
           {/* Instrument selector */}
           <select
             value={synthInstrument?.id || ''}
@@ -170,61 +189,124 @@ export default function Keyboard() {
 
       {/* Keys */}
       <div className="px-3 py-3 space-y-2">
-          {/* Lower row: Z-M */}
-        <div className="flex gap-1.5 justify-center">
-          {['Z', 'X', 'C', 'V', 'B', 'N', 'M'].map((displayKey) => {
-            const lowerKey = displayKey.toLowerCase();
-            const noteOffset = KEY_MAP[lowerKey];
-            const isActive = activeNotes.has(lowerKey);
-            return (
-              <KeyButton
-                key={lowerKey}
-                displayKey={displayKey}
-                noteOffset={noteOffset}
-                isActive={isActive}
-                onClick={() => playKey(lowerKey, noteOffset)}
-              />
-            );
-          })}
-        </div>
+        {pianoView ? (
+          <div className="flex justify-center overflow-x-auto pb-1">
+            <div className="relative bg-[#091321] rounded-xl p-3" style={{ width: `${PIANO_WHITE_KEYS.length * (WHITE_KEY_WIDTH + WHITE_KEY_GAP) - WHITE_KEY_GAP}px`, maxWidth: '100%', height: '128px' }}>
+              {PIANO_WHITE_KEYS.map((lowerKey, idx) => {
+                const isActive = activeNotes.has(lowerKey);
+                const noteOffset = KEY_MAP[lowerKey];
+                const noteName = getNoteNameFromOffset(noteOffset);
+                return (
+                  <button
+                    key={lowerKey}
+                    type="button"
+                    onClick={() => playKey(lowerKey, noteOffset)}
+                    className={cn(
+                      'absolute bottom-0 flex flex-col items-center justify-end rounded-b-xl border border-slate-300 bg-white text-slate-900 transition-all',
+                      isActive ? 'bg-slate-100 shadow-lg shadow-slate-400/30' : 'hover:bg-slate-100'
+                    )}
+                    style={{
+                      width: WHITE_KEY_WIDTH,
+                      left: idx * (WHITE_KEY_WIDTH + WHITE_KEY_GAP),
+                      height: 108,
+                    }}
+                  >
+                    <div className="text-[8px] font-semibold uppercase tracking-[0.16em] mb-1 text-slate-500">{lowerKey.toUpperCase()}</div>
+                    <div className="text-[10px] font-bold pb-2">{noteName}</div>
+                  </button>
+                );
+              })}
 
-        {/* Middle row: A-J */}
-        <div className="flex gap-1.5 justify-center">
-          {['A', 'S', 'D', 'F', 'G', 'H', 'J'].map((displayKey) => {
-            const lowerKey = displayKey.toLowerCase();
-            const noteOffset = KEY_MAP[lowerKey];
-            const isActive = activeNotes.has(lowerKey);
-            return (
-              <KeyButton
-                key={lowerKey}
-                displayKey={displayKey}
-                noteOffset={noteOffset}
-                isActive={isActive}
-                onClick={() => playKey(lowerKey, noteOffset)}
-              />
-            );
-          })}
-        </div>
+              {PIANO_WHITE_KEYS.map((lowerKey, idx) => {
+                const noteOffset = KEY_MAP[lowerKey];
+                const normalized = ((noteOffset % 12) + 12) % 12;
+                if (![0, 2, 5, 7, 9].includes(normalized) || idx === PIANO_WHITE_KEYS.length - 1) return null;
+                const blackOffset = noteOffset + 1;
+                const blackKeyId = `black-${idx}`;
+                const isActiveBlack = activeNotes.has(blackKeyId);
+                const blackNoteName = getNoteNameFromOffset(blackOffset);
+                return (
+                  <button
+                    key={blackKeyId}
+                    type="button"
+                    onClick={() => playKey(blackKeyId, blackOffset)}
+                    className={cn(
+                      'absolute rounded-b-xl bg-slate-950 text-[8px] text-white uppercase tracking-[0.12em] transition-all',
+                      isActiveBlack ? 'border border-slate-300' : 'hover:border-slate-400'
+                    )}
+                    style={{
+                      width: BLACK_KEY_WIDTH,
+                      left: idx * (WHITE_KEY_WIDTH + WHITE_KEY_GAP) + WHITE_KEY_WIDTH - BLACK_KEY_WIDTH / 2,
+                      height: BLACK_KEY_HEIGHT,
+                      top: 10,
+                      zIndex: 20,
+                    }}
+                    title={`${blackNoteName} (click to play)`}
+                  >
+                    {blackNoteName.replace(/([A-G])/,'$1#')}
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+        ) : (
+          <>
+            {/* Lower row: Z-M */}
+            <div className="flex gap-1.5 justify-center">
+              {['Z', 'X', 'C', 'V', 'B', 'N', 'M'].map((displayKey) => {
+                const lowerKey = displayKey.toLowerCase();
+                const noteOffset = KEY_MAP[lowerKey];
+                const isActive = activeNotes.has(lowerKey);
+                return (
+                  <KeyButton
+                    key={lowerKey}
+                    displayKey={displayKey}
+                    noteOffset={noteOffset}
+                    isActive={isActive}
+                    onClick={() => playKey(lowerKey, noteOffset)}
+                  />
+                );
+              })}
+            </div>
 
-        {/* Top row: Q-U */}
-        <div className="flex gap-1.5 justify-center">
-          {['Q', 'W', 'E', 'R', 'T', 'Y', 'U'].map((displayKey) => {
-            const lowerKey = displayKey.toLowerCase();
-            const noteOffset = KEY_MAP[lowerKey];
-            const isActive = activeNotes.has(lowerKey);
-            return (
-              <KeyButton
-                key={lowerKey}
-                displayKey={displayKey}
-                noteOffset={noteOffset}
-                isActive={isActive}
-                onClick={() => playKey(lowerKey, noteOffset)}
-              />
-            );
-          })}
-        </div>
+            {/* Middle row: A-J */}
+            <div className="flex gap-1.5 justify-center">
+              {['A', 'S', 'D', 'F', 'G', 'H', 'J'].map((displayKey) => {
+                const lowerKey = displayKey.toLowerCase();
+                const noteOffset = KEY_MAP[lowerKey];
+                const isActive = activeNotes.has(lowerKey);
+                return (
+                  <KeyButton
+                    key={lowerKey}
+                    displayKey={displayKey}
+                    noteOffset={noteOffset}
+                    isActive={isActive}
+                    onClick={() => playKey(lowerKey, noteOffset)}
+                  />
+                );
+              })}
+            </div>
+
+            {/* Top row: Q-U */}
+            <div className="flex gap-1.5 justify-center">
+              {['Q', 'W', 'E', 'R', 'T', 'Y', 'U'].map((displayKey) => {
+                const lowerKey = displayKey.toLowerCase();
+                const noteOffset = KEY_MAP[lowerKey];
+                const isActive = activeNotes.has(lowerKey);
+                return (
+                  <KeyButton
+                    key={lowerKey}
+                    displayKey={displayKey}
+                    noteOffset={noteOffset}
+                    isActive={isActive}
+                    onClick={() => playKey(lowerKey, noteOffset)}
+                  />
+                );
+              })}
+            </div>
+          </>
+        )}
       </div>
-
       {/* Info */}
       <div className="px-3 pb-2 text-[8px] text-gray-700 text-center">
         Press Z-M for lower octave, A-J for middle, and Q-U for higher octave • Three octaves of C major scale
