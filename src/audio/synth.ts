@@ -6,9 +6,15 @@ let masterGain: GainNode | null = null;
 let masterCompressor: DynamicsCompressorNode | null = null;
 let reverbNode: ConvolverNode | null = null;
 let reverbGain: GainNode | null = null;
+let reverbOutGain: GainNode | null = null;
 let nodePool: NodePool | null = null;
 
 let analyserNode: AnalyserNode | null = null;
+let reverbDebugEnabled = false;
+let reverbDebugAnalyser: AnalyserNode | null = null;
+let reverbDebugInterval: ReturnType<typeof setInterval> | null = null;
+let reverbSoloEnabled = false;
+let reverbSavedMasterGain = 1;
 
 export function getAudioContext(): AudioContext {
   if (!audioCtx) {
@@ -36,20 +42,26 @@ function _buildGraph() {
   analyserNode.fftSize = 512;
   analyserNode.smoothingTimeConstant = 0.8;
 
+  reverbDebugAnalyser = ctx.createAnalyser();
+  reverbDebugAnalyser.fftSize = 256;
+
   // Reverb (impulse response generated synthetically)
   reverbNode = ctx.createConvolver();
   reverbNode.buffer = _makeReverbIR(ctx, 1.2, 4.2);
   reverbGain = ctx.createGain();
-  reverbGain.gain.value = 0;
+  reverbGain.gain.value = 2;
+  reverbOutGain = ctx.createGain();
+  reverbOutGain.gain.value = 4.0;
 
   masterGain.connect(masterCompressor);
   masterCompressor.connect(analyserNode);
   analyserNode.connect(ctx.destination);
 
-  // Reverb send
-  masterGain.connect(reverbGain);
+  // Reverb send bus (per-instrument sends connect into this node)
   reverbGain.connect(reverbNode);
-  reverbNode.connect(analyserNode);
+  reverbNode.connect(reverbOutGain);
+  reverbOutGain.connect(ctx.destination);
+  if (reverbDebugAnalyser) reverbOutGain.connect(reverbDebugAnalyser);
   nodePool = new NodePool(ctx, 48);
 }
 
@@ -58,12 +70,27 @@ function _makeReverbIR(ctx: AudioContext, duration: number, decay: number): Audi
   const sr = ctx.sampleRate;
   const len = Math.floor(sr * duration);
   const buf = ctx.createBuffer(2, len, sr);
+  let maxVal = 0;
+
   for (let ch = 0; ch < 2; ch++) {
     const d = buf.getChannelData(ch);
     for (let i = 0; i < len; i++) {
-      d[i] = (Math.random() * 2 - 1) * Math.pow(1 - i / len, decay);
+      const value = (Math.random() * 2 - 1) * Math.pow(1 - i / len, decay);
+      d[i] = value;
+      maxVal = Math.max(maxVal, Math.abs(value));
     }
   }
+
+  if (maxVal > 0) {
+    const scale = 1 / maxVal;
+    for (let ch = 0; ch < 2; ch++) {
+      const d = buf.getChannelData(ch);
+      for (let i = 0; i < len; i++) {
+        d[i] *= scale;
+      }
+    }
+  }
+
   return buf;
 }
 
@@ -88,6 +115,48 @@ export function setCompressorEnabled(on: boolean) {
     masterCompressor.ratio.value = on ? 4 : 1;
     masterCompressor.threshold.value = on ? -12 : 0;
   }
+}
+
+export function setReverbDebug(on: boolean) {
+  reverbDebugEnabled = on;
+  if (!reverbDebugAnalyser) return;
+
+  if (on && !reverbDebugInterval) {
+    const buf = new Uint8Array(reverbDebugAnalyser.frequencyBinCount);
+    reverbDebugInterval = setInterval(() => {
+      if (!reverbDebugAnalyser) return;
+      reverbDebugAnalyser.getByteFrequencyData(buf);
+      const avg = buf.reduce((sum, value) => sum + value, 0) / buf.length;
+      const pct = Math.round((avg / 255) * 100);
+      console.log(`Reverb debug: ${pct}% level`, { sample: buf.slice(0, 8) });
+    }, 250);
+    console.log('Reverb debug enabled');
+  }
+
+  if (!on && reverbDebugInterval) {
+    clearInterval(reverbDebugInterval);
+    reverbDebugInterval = null;
+    console.log('Reverb debug disabled');
+  }
+}
+
+export function setReverbSolo(on: boolean) {
+  reverbSoloEnabled = on;
+  if (!masterGain) return;
+
+  if (on) {
+    reverbSavedMasterGain = masterGain.gain.value;
+    masterGain.gain.value = 0;
+    console.log('Reverb solo enabled');
+  } else {
+    masterGain.gain.value = reverbSavedMasterGain;
+    console.log('Reverb solo disabled');
+  }
+}
+
+if (typeof window !== 'undefined') {
+  (window as any).setReverbDebug = setReverbDebug;
+  (window as any).setReverbSolo = setReverbSolo;
 }
 
 // ─── Bit-crusher wave shaper ─────────────────────────────────────────────────
@@ -204,6 +273,14 @@ export function playInstrument(
     revSend.gain.value = inst.reverbMix;
     env.connect(revSend);
     revSend.connect(reverbGain);
+    if (reverbDebugEnabled) {
+      console.log('Reverb send active', {
+        instrument: inst.name,
+        type: inst.type,
+        reverbMix: inst.reverbMix,
+        time: ctx.currentTime,
+      });
+    }
   }
 
   // ── Per-instrument delay ──
