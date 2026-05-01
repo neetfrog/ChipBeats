@@ -265,7 +265,7 @@ export const useSequencerStore = create<Store>((set, get) => ({
     set({ isPlaying: false, currentStep: -1 });
   },
 
-  setBpm: (bpm) => set({ bpm: Math.max(40, Math.min(300, bpm)) }),
+  setBpm: (bpm) => set({ bpm: Math.max(1, Math.min(300, bpm)) }),
 
   tapTempo: () => {
     const now = performance.now();
@@ -280,7 +280,7 @@ export const useSequencerStore = create<Store>((set, get) => ({
     for (let i = 1; i < tapTimes.length; i++) gaps.push(tapTimes[i] - tapTimes[i - 1]);
     const avg = gaps.reduce((a, b) => a + b, 0) / gaps.length;
     const bpm = Math.round(60000 / avg);
-    set({ bpm: Math.max(40, Math.min(300, bpm)) });
+    set({ bpm: Math.max(1, Math.min(300, bpm)) });
   },
 
   setMasterVolume: (v) => {

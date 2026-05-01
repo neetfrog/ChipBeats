@@ -3,7 +3,7 @@ import { useSequencerStore } from '../store/sequencerStore';
 import { makePresetPatterns } from '../audio/presets';
 import { downloadProject, loadProjectFile } from '../utils/projectExport';
 
-const BPM_MIN = 40;
+const BPM_MIN = 1;
 const BPM_MAX = 300;
 
 export default memo(function Transport() {
@@ -283,10 +283,6 @@ export default memo(function Transport() {
             title="Load project from JSON file"
           >⬆ Import</button>
           
-          <button
-            onClick={() => { saveToStorage(); }}
-            className="px-3 py-1 rounded-lg text-[9px] font-bold bg-gray-700 text-green-400 hover:bg-gray-600 transition-all"
-          >💾 Save</button>
           <div className="w-full sm:w-auto flex flex-col gap-1 sm:flex-row sm:items-center">
             <select
               value={currentSoundPack}
