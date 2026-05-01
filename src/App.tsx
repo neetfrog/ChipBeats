@@ -113,19 +113,6 @@ export default function App() {
               <Suspense fallback={<LoadingPlaceholder />}>
                 <Visualizer />
               </Suspense>
-              <div className="flex items-center justify-between px-3 py-1">
-                <span className="text-gray-800 text-[8px] uppercase tracking-[0.18em]">
-                  SPECTRUM ANALYZER
-                </span>
-                <div className="flex items-center gap-2">
-                  {isPlaying && (
-                    <div className="flex items-center gap-1">
-                      <div className="w-1.5 h-1.5 rounded-full bg-green-400 animate-pulse" />
-                      <span className="text-green-600 text-[8px] tracking-widest">LIVE</span>
-                    </div>
-                  )}
-                </div>
-              </div>
             </div>
           )}
 
