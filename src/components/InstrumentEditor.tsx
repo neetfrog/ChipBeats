@@ -1,4 +1,4 @@
-import { useState, useRef, useCallback } from 'react';
+import { useState, useRef, useCallback, useMemo, useEffect, memo } from 'react';
 import { useSequencerStore } from '../store/sequencerStore';
 import { InstrumentParams, WaveShape, InstrumentType } from '../types';
 import { DEFAULT_INSTRUMENTS } from '../audio/presets';
@@ -36,7 +36,7 @@ const INSTRUMENT_TYPES: InstrumentType[] = [
 ];
 
 // ── ADSR Envelope Preview ────────────────────────────────────────────────────
-function ADSRPreview({ attack, decay, sustain, release, color }: {
+const ADSRPreview = memo(function ADSRPreview({ attack, decay, sustain, release, color }: {
   attack: number; decay: number; sustain: number; release: number; color: string;
 }) {
   const W = 200, H = 56;
@@ -74,10 +74,10 @@ function ADSRPreview({ attack, decay, sustain, release, color }: {
       ))}
     </svg>
   );
-}
+});
 
 // ── Wave shape preview ───────────────────────────────────────────────────────
-function WavePreview({ wave, color, pulseWidth = 0.5, frequency = 440 }: { wave: WaveShape; color: string; pulseWidth?: number; frequency: number }) {
+const WavePreview = memo(function WavePreview({ wave, color, pulseWidth = 0.5, frequency = 440 }: { wave: WaveShape; color: string; pulseWidth?: number; frequency: number }) {
   const W = 80, H = 32;
   const cycles = Math.max(1, Math.min(18, Math.round(frequency / 250)));
   const pts: [number, number][] = [];
@@ -105,7 +105,7 @@ function WavePreview({ wave, color, pulseWidth = 0.5, frequency = 440 }: { wave:
       <path d={d} fill="none" stroke={color} strokeWidth="1.5" strokeLinejoin="round" strokeLinecap="round" />
     </svg>
   );
-}
+});
 
 // ── Knob ─────────────────────────────────────────────────────────────────────
 interface KnobProps {
@@ -122,14 +122,32 @@ interface KnobProps {
   defaultValue?: number;
 }
 
-function Knob({ label, value, min, max, step = 0.01, decimals = 2, unit = '', onChange, color = '#8b5cf6', fullWidth, defaultValue }: KnobProps) {
+const Knob = memo(function Knob({ label, value, min, max, step = 0.01, decimals = 2, unit = '', onChange, color = '#8b5cf6', fullWidth, defaultValue }: KnobProps) {
+  const [displayValue, setDisplayValue] = useState(value);
   const dragRef = useRef<{ startX: number; startY: number; startVal: number } | null>(null);
+  const frameRef = useRef<number | null>(null);
+  const pendingValueRef = useRef<number | null>(null);
+
+  useEffect(() => {
+    setDisplayValue(value);
+  }, [value]);
+
+  const flushPending = useCallback(() => {
+    if (frameRef.current !== null) {
+      cancelAnimationFrame(frameRef.current);
+      frameRef.current = null;
+    }
+    if (pendingValueRef.current !== null) {
+      onChange(pendingValueRef.current);
+      pendingValueRef.current = null;
+    }
+  }, [onChange]);
 
   const handlePointerDown = useCallback((e: React.PointerEvent) => {
     e.preventDefault();
-    dragRef.current = { startX: e.clientX, startY: e.clientY, startVal: value };
-    (e.target as HTMLElement).setPointerCapture(e.pointerId);
-  }, [value]);
+    dragRef.current = { startX: e.clientX, startY: e.clientY, startVal: displayValue };
+    (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId);
+  }, [displayValue]);
 
   const handlePointerMove = useCallback((e: React.PointerEvent) => {
     if (!dragRef.current) return;
@@ -137,13 +155,27 @@ function Knob({ label, value, min, max, step = 0.01, decimals = 2, unit = '', on
     const dx = e.clientX - dragRef.current.startX;
     const range = max - min;
     const delta = ((dy + dx) / 100) * range;
-    const newVal = Math.max(min, Math.min(max, dragRef.current.startVal + delta));
-    onChange(Math.round(newVal / step) * step);
-  }, [min, max, step, onChange]);
+    const rawValue = Math.max(min, Math.min(max, dragRef.current.startVal + delta));
+    const quantized = Math.round(rawValue / step) * step;
+    if (quantized === displayValue) return;
+
+    setDisplayValue(quantized);
+    pendingValueRef.current = quantized;
+    if (frameRef.current === null) {
+      frameRef.current = requestAnimationFrame(() => {
+        if (pendingValueRef.current !== null) {
+          onChange(pendingValueRef.current);
+          pendingValueRef.current = null;
+        }
+        frameRef.current = null;
+      });
+    }
+  }, [min, max, step, onChange, displayValue]);
 
   const handlePointerUp = useCallback(() => {
     dragRef.current = null;
-  }, []);
+    flushPending();
+  }, [flushPending]);
 
   const handleDoubleClick = useCallback(() => {
     if (defaultValue !== undefined) {
@@ -155,7 +187,7 @@ function Knob({ label, value, min, max, step = 0.01, decimals = 2, unit = '', on
   const r = 18, cx = 22, cy = 22;
   const startAngle = 220 * (Math.PI / 180);
   const endAngle = -40 * (Math.PI / 180);
-  const pct = (value - min) / (max - min);
+  const pct = (displayValue - min) / (max - min);
   const angle = startAngle + pct * (endAngle - startAngle + Math.PI * 2);
   const bgArc = describeArc(cx, cy, r, -220, 40);
   const fillArc = describeArc(cx, cy, r, -220, -220 + pct * 280);
@@ -180,14 +212,14 @@ function Knob({ label, value, min, max, step = 0.01, decimals = 2, unit = '', on
       </svg>
       <span className="text-[8px] uppercase tracking-wider text-gray-400 leading-none text-center">{label}</span>
       <span className="text-[9px] font-mono text-white leading-none">
-        {value.toFixed(decimals)}{unit}
+        {displayValue.toFixed(decimals)}{unit}
       </span>
       <input
         type="range"
         min={min}
         max={max}
         step={step}
-        value={value}
+        value={displayValue}
         onChange={e => onChange(Number(e.target.value))}
         className="mt-2 w-full sm:hidden accent-transparent"
         style={{ accentColor: color }}
@@ -195,7 +227,7 @@ function Knob({ label, value, min, max, step = 0.01, decimals = 2, unit = '', on
       />
     </div>
   );
-}
+});
 
 function describeArc(cx: number, cy: number, r: number, startDeg: number, endDeg: number) {
   const toRad = (d: number) => d * Math.PI / 180;
@@ -231,25 +263,56 @@ function Section({ title, children, color = '#8b5cf6', defaultOpen = true }: {
 
 // ── Main Component ────────────────────────────────────────────────────────────
 export default function InstrumentEditor() {
-  const {
-    instruments, editingInstrumentId,
-    updateInstrument, addInstrument, removeInstrument,
-    setEditingInstrument, previewInstrument,
-    activeEditorTab, setActiveEditorTab,
-  } = useSequencerStore();
-
-  const inst = instruments.find(i => i.id === editingInstrumentId);
+  const instruments = useSequencerStore(state => state.instruments);
+  const editingInstrumentId = useSequencerStore(state => state.editingInstrumentId);
+  const inst = useSequencerStore(state => state.instruments.find(i => i.id === state.editingInstrumentId));
+  const updateInstrument = useSequencerStore(state => state.updateInstrument);
+  const addInstrument = useSequencerStore(state => state.addInstrument);
+  const removeInstrument = useSequencerStore(state => state.removeInstrument);
+  const setEditingInstrument = useSequencerStore(state => state.setEditingInstrument);
+  const previewInstrument = useSequencerStore(state => state.previewInstrument);
+  const activeEditorTab = useSequencerStore(state => state.activeEditorTab);
+  const setActiveEditorTab = useSequencerStore(state => state.setActiveEditorTab);
   const [newInstBase, setNewInstBase] = useState<InstrumentType>('blip');
 
-  // Get the default instrument for this type
-  const defaultInst = inst ? DEFAULT_INSTRUMENTS.find(d => d.type === inst.type) : null;
+  const defaultInst = useMemo(() => inst ? DEFAULT_INSTRUMENTS.find(d => d.type === inst.type) : null, [inst]);
   const [previewRepeatMode, setPreviewRepeatMode] = useState(false);
   const [previewLoopActive, setPreviewLoopActive] = useState(false);
 
-  const upd = (k: keyof InstrumentParams, v: unknown) => {
+  const upd = useCallback((k: keyof InstrumentParams, v: unknown) => {
     if (!inst) return;
     updateInstrument(inst.id, { [k]: v } as Partial<InstrumentParams>);
-  };
+  }, [inst, updateInstrument]);
+
+  const knobHandlers = useMemo(() => {
+    if (!editingInstrumentId) return {} as Record<string, (v: number) => void>;
+    return {
+      pulseWidth: (v: number) => updateInstrument(editingInstrumentId, { pulseWidth: v }),
+      frequency: (v: number) => updateInstrument(editingInstrumentId, { frequency: v }),
+      freqEnd: (v: number) => updateInstrument(editingInstrumentId, { freqEnd: v }),
+      pitchSweepTime: (v: number) => updateInstrument(editingInstrumentId, { pitchSweepTime: v }),
+      attack: (v: number) => updateInstrument(editingInstrumentId, { attack: v }),
+      decay: (v: number) => updateInstrument(editingInstrumentId, { decay: v }),
+      sustain: (v: number) => updateInstrument(editingInstrumentId, { sustain: v }),
+      release: (v: number) => updateInstrument(editingInstrumentId, { release: v }),
+      filterFreq: (v: number) => updateInstrument(editingInstrumentId, { filterFreq: v }),
+      filterQ: (v: number) => updateInstrument(editingInstrumentId, { filterQ: v }),
+      filterEnvAmt: (v: number) => updateInstrument(editingInstrumentId, { filterEnvAmt: v }),
+      bitCrush: (v: number) => updateInstrument(editingInstrumentId, { bitCrush: v }),
+      distortion: (v: number) => updateInstrument(editingInstrumentId, { distortion: v }),
+      volume: (v: number) => updateInstrument(editingInstrumentId, { volume: v }),
+      pan: (v: number) => updateInstrument(editingInstrumentId, { pan: v }),
+      reverbMix: (v: number) => updateInstrument(editingInstrumentId, { reverbMix: v }),
+      delayMix: (v: number) => updateInstrument(editingInstrumentId, { delayMix: v }),
+      delayTime: (v: number) => updateInstrument(editingInstrumentId, { delayTime: v }),
+      delayFeedback: (v: number) => updateInstrument(editingInstrumentId, { delayFeedback: v }),
+      arpSpeed: (v: number) => updateInstrument(editingInstrumentId, { arpSpeed: v }),
+      vibratoRate: (v: number) => updateInstrument(editingInstrumentId, { vibratoRate: v }),
+      vibratoDepth: (v: number) => updateInstrument(editingInstrumentId, { vibratoDepth: v }),
+      tremoloRate: (v: number) => updateInstrument(editingInstrumentId, { tremoloRate: v }),
+      tremoloDepth: (v: number) => updateInstrument(editingInstrumentId, { tremoloDepth: v }),
+    };
+  }, [editingInstrumentId, updateInstrument]);
 
   const handleResetToDefault = () => {
     if (!inst || !defaultInst) return;
@@ -432,11 +495,11 @@ export default function InstrumentEditor() {
                 </div>
               </div>
               {inst.wave === 'pulse' && (
-                <Knob label="Pulse W" value={inst.pulseWidth} min={0.05} max={0.95} step={0.01} decimals={2} onChange={v => upd('pulseWidth', v)} color={inst.color} defaultValue={defaultInst?.pulseWidth} />
+                <Knob label="Pulse W" value={inst.pulseWidth} min={0.05} max={0.95} step={0.01} decimals={2} onChange={knobHandlers.pulseWidth} color={inst.color} defaultValue={defaultInst?.pulseWidth} />
               )}
-              <Knob label="Freq" value={inst.frequency} min={20} max={8000} step={1} decimals={0} unit="Hz" onChange={v => upd('frequency', v)} color={inst.color} defaultValue={defaultInst?.frequency} />
-              <Knob label="Freq End" value={inst.freqEnd} min={20} max={8000} step={1} decimals={0} unit="Hz" onChange={v => upd('freqEnd', v)} color={inst.color} defaultValue={defaultInst?.freqEnd} />
-              <Knob label="Sweep" value={inst.pitchSweepTime} min={0.001} max={2} step={0.001} decimals={3} unit="s" onChange={v => upd('pitchSweepTime', v)} color={inst.color} defaultValue={defaultInst?.pitchSweepTime} />
+              <Knob label="Freq" value={inst.frequency} min={20} max={8000} step={1} decimals={0} unit="Hz" onChange={knobHandlers.frequency} color={inst.color} defaultValue={defaultInst?.frequency} />
+              <Knob label="Freq End" value={inst.freqEnd} min={20} max={8000} step={1} decimals={0} unit="Hz" onChange={knobHandlers.freqEnd} color={inst.color} defaultValue={defaultInst?.freqEnd} />
+              <Knob label="Sweep" value={inst.pitchSweepTime} min={0.001} max={2} step={0.001} decimals={3} unit="s" onChange={knobHandlers.pitchSweepTime} color={inst.color} defaultValue={defaultInst?.pitchSweepTime} />
             </Section>
 
             {/* ── Envelope ── */}
@@ -450,10 +513,10 @@ export default function InstrumentEditor() {
                   color={inst.color}
                 />
               </div>
-              <Knob label="Attack" value={inst.attack} min={0.001} max={2} step={0.001} decimals={3} unit="s" onChange={v => upd('attack', v)} color="#22c55e" defaultValue={defaultInst?.attack} />
-              <Knob label="Decay" value={inst.decay} min={0.001} max={3} step={0.001} decimals={3} unit="s" onChange={v => upd('decay', v)} color="#22c55e" defaultValue={defaultInst?.decay} />
-              <Knob label="Sustain" value={inst.sustain} min={0} max={1} step={0.01} decimals={2} onChange={v => upd('sustain', v)} color="#22c55e" defaultValue={defaultInst?.sustain} />
-              <Knob label="Release" value={inst.release} min={0.001} max={3} step={0.001} decimals={3} unit="s" onChange={v => upd('release', v)} color="#22c55e" defaultValue={defaultInst?.release} />
+              <Knob label="Attack" value={inst.attack} min={0.001} max={2} step={0.001} decimals={3} unit="s" onChange={knobHandlers.attack} color="#22c55e" defaultValue={defaultInst?.attack} />
+              <Knob label="Decay" value={inst.decay} min={0.001} max={3} step={0.001} decimals={3} unit="s" onChange={knobHandlers.decay} color="#22c55e" defaultValue={defaultInst?.decay} />
+              <Knob label="Sustain" value={inst.sustain} min={0} max={1} step={0.01} decimals={2} onChange={knobHandlers.sustain} color="#22c55e" defaultValue={defaultInst?.sustain} />
+              <Knob label="Release" value={inst.release} min={0.001} max={3} step={0.001} decimals={3} unit="s" onChange={knobHandlers.release} color="#22c55e" defaultValue={defaultInst?.release} />
             </Section>
 
             {/* ── Filter ── */}
@@ -474,25 +537,25 @@ export default function InstrumentEditor() {
                   ))}
                 </div>
               </div>
-              <Knob label="Cutoff" value={inst.filterFreq} min={20} max={18000} step={10} decimals={0} unit="Hz" onChange={v => upd('filterFreq', v)} color="#06b6d4" defaultValue={defaultInst?.filterFreq} />
-              <Knob label="Resonance" value={inst.filterQ} min={0.1} max={20} step={0.1} decimals={1} onChange={v => upd('filterQ', v)} color="#06b6d4" defaultValue={defaultInst?.filterQ} />
-              <Knob label="Env Amt" value={inst.filterEnvAmt} min={-1} max={1} step={0.01} decimals={2} onChange={v => upd('filterEnvAmt', v)} color="#06b6d4" defaultValue={defaultInst?.filterEnvAmt} />
+              <Knob label="Cutoff" value={inst.filterFreq} min={20} max={18000} step={10} decimals={0} unit="Hz" onChange={knobHandlers.filterFreq} color="#06b6d4" defaultValue={defaultInst?.filterFreq} />
+              <Knob label="Resonance" value={inst.filterQ} min={0.1} max={20} step={0.1} decimals={1} onChange={knobHandlers.filterQ} color="#06b6d4" defaultValue={defaultInst?.filterQ} />
+              <Knob label="Env Amt" value={inst.filterEnvAmt} min={-1} max={1} step={0.01} decimals={2} onChange={knobHandlers.filterEnvAmt} color="#06b6d4" defaultValue={defaultInst?.filterEnvAmt} />
             </Section>
 
             {/* ── FX ── */}
             <Section title="FX" color="#f97316" defaultOpen={false}>
-              <Knob label="BitCrush" value={inst.bitCrush} min={1} max={16} step={1} decimals={0} unit="b" onChange={v => upd('bitCrush', v)} color="#f97316" defaultValue={defaultInst?.bitCrush} />
-              <Knob label="Distort" value={inst.distortion} min={0} max={1} step={0.01} decimals={2} onChange={v => upd('distortion', v)} color="#f97316" defaultValue={defaultInst?.distortion} />
-              <Knob label="Volume" value={inst.volume} min={0} max={1} step={0.01} decimals={2} onChange={v => upd('volume', v)} color="#f97316" defaultValue={defaultInst?.volume} />
-              <Knob label="Pan" value={inst.pan} min={-1} max={1} step={0.01} decimals={2} onChange={v => upd('pan', v)} color="#f97316" defaultValue={defaultInst?.pan} />
+              <Knob label="BitCrush" value={inst.bitCrush} min={1} max={16} step={1} decimals={0} unit="b" onChange={knobHandlers.bitCrush} color="#f97316" defaultValue={defaultInst?.bitCrush} />
+              <Knob label="Distort" value={inst.distortion} min={0} max={1} step={0.01} decimals={2} onChange={knobHandlers.distortion} color="#f97316" defaultValue={defaultInst?.distortion} />
+              <Knob label="Volume" value={inst.volume} min={0} max={1} step={0.01} decimals={2} onChange={knobHandlers.volume} color="#f97316" defaultValue={defaultInst?.volume} />
+              <Knob label="Pan" value={inst.pan} min={-1} max={1} step={0.01} decimals={2} onChange={knobHandlers.pan} color="#f97316" defaultValue={defaultInst?.pan} />
             </Section>
 
             {/* ── Reverb / Delay ── */}
             <Section title="Space" color="#a78bfa" defaultOpen={false}>
-              <Knob label="Reverb" value={inst.reverbMix} min={0} max={1} step={0.01} decimals={2} onChange={v => upd('reverbMix', v)} color="#a78bfa" defaultValue={defaultInst?.reverbMix} />
-              <Knob label="Delay" value={inst.delayMix} min={0} max={1} step={0.01} decimals={2} onChange={v => upd('delayMix', v)} color="#a78bfa" defaultValue={defaultInst?.delayMix} />
-              <Knob label="Dly Time" value={inst.delayTime} min={0.01} max={1} step={0.01} decimals={2} unit="s" onChange={v => upd('delayTime', v)} color="#a78bfa" defaultValue={defaultInst?.delayTime} />
-              <Knob label="Dly Fbk" value={inst.delayFeedback} min={0} max={0.92} step={0.01} decimals={2} onChange={v => upd('delayFeedback', v)} color="#a78bfa" defaultValue={defaultInst?.delayFeedback} />
+              <Knob label="Reverb" value={inst.reverbMix} min={0} max={1} step={0.01} decimals={2} onChange={knobHandlers.reverbMix} color="#a78bfa" defaultValue={defaultInst?.reverbMix} />
+              <Knob label="Delay" value={inst.delayMix} min={0} max={1} step={0.01} decimals={2} onChange={knobHandlers.delayMix} color="#a78bfa" defaultValue={defaultInst?.delayMix} />
+              <Knob label="Dly Time" value={inst.delayTime} min={0.01} max={1} step={0.01} decimals={2} unit="s" onChange={knobHandlers.delayTime} color="#a78bfa" defaultValue={defaultInst?.delayTime} />
+              <Knob label="Dly Fbk" value={inst.delayFeedback} min={0} max={0.92} step={0.01} decimals={2} onChange={knobHandlers.delayFeedback} color="#a78bfa" defaultValue={defaultInst?.delayFeedback} />
             </Section>
 
             {/* ── Arpeggio ── */}
@@ -531,15 +594,15 @@ export default function InstrumentEditor() {
                   ))}
                 </div>
               </div>
-              <Knob label="Arp Spd" value={inst.arpSpeed} min={0} max={0.5} step={0.005} decimals={3} unit="s" onChange={v => upd('arpSpeed', v)} color="#eab308" defaultValue={defaultInst?.arpSpeed} />
+              <Knob label="Arp Spd" value={inst.arpSpeed} min={0} max={0.5} step={0.005} decimals={3} unit="s" onChange={knobHandlers.arpSpeed} color="#eab308" defaultValue={defaultInst?.arpSpeed} />
             </Section>
 
             {/* ── Vibrato / Tremolo ── */}
             <Section title="Modulation" color="#f472b6" defaultOpen={false}>
-              <Knob label="Vib Rate" value={inst.vibratoRate} min={0} max={20} step={0.1} decimals={1} unit="Hz" onChange={v => upd('vibratoRate', v)} color="#f472b6" defaultValue={defaultInst?.vibratoRate} />
-              <Knob label="Vib Depth" value={inst.vibratoDepth} min={0} max={3} step={0.01} decimals={2} unit="st" onChange={v => upd('vibratoDepth', v)} color="#f472b6" defaultValue={defaultInst?.vibratoDepth} />
-              <Knob label="Trem Rate" value={inst.tremoloRate} min={0} max={20} step={0.1} decimals={1} unit="Hz" onChange={v => upd('tremoloRate', v)} color="#f472b6" defaultValue={defaultInst?.tremoloRate} />
-              <Knob label="Trem Dep" value={inst.tremoloDepth} min={0} max={1} step={0.01} decimals={2} onChange={v => upd('tremoloDepth', v)} color="#f472b6" defaultValue={defaultInst?.tremoloDepth} />
+              <Knob label="Vib Rate" value={inst.vibratoRate} min={0} max={20} step={0.1} decimals={1} unit="Hz" onChange={knobHandlers.vibratoRate} color="#f472b6" defaultValue={defaultInst?.vibratoRate} />
+              <Knob label="Vib Depth" value={inst.vibratoDepth} min={0} max={3} step={0.01} decimals={2} unit="st" onChange={knobHandlers.vibratoDepth} color="#f472b6" defaultValue={defaultInst?.vibratoDepth} />
+              <Knob label="Trem Rate" value={inst.tremoloRate} min={0} max={20} step={0.1} decimals={1} unit="Hz" onChange={knobHandlers.tremoloRate} color="#f472b6" defaultValue={defaultInst?.tremoloRate} />
+              <Knob label="Trem Dep" value={inst.tremoloDepth} min={0} max={1} step={0.01} decimals={2} onChange={knobHandlers.tremoloDepth} color="#f472b6" defaultValue={defaultInst?.tremoloDepth} />
             </Section>
 
             {/* Preview button */}
