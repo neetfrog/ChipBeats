@@ -162,14 +162,16 @@ function Knob({ label, value, min, max, step = 0.01, decimals = 2, unit = '', on
   const dotY = cy + (r - 4) * Math.sin(angle);
 
   return (
-    <div className={`flex flex-col items-center gap-0.5 cursor-ns-resize select-none ${fullWidth ? 'w-full' : 'min-w-[52px]'}`}
+    <div className={`flex flex-col items-center gap-0.5 cursor-ns-resize select-none ${fullWidth ? 'w-full' : 'min-w-[64px] sm:min-w-[52px]'} touch-none p-1`}
+      style={{ touchAction: 'none' }}
       onPointerDown={handlePointerDown}
       onPointerMove={handlePointerMove}
       onPointerUp={handlePointerUp}
+      onPointerCancel={handlePointerUp}
       onDoubleClick={handleDoubleClick}
       title={defaultValue !== undefined ? `Double-click to reset to ${defaultValue.toFixed(decimals)}` : undefined}
     >
-      <svg width={44} height={44} viewBox="0 0 44 44">
+      <svg width={44} height={44} viewBox="0 0 44 44" style={{ touchAction: 'none' }}>
         <path d={bgArc} fill="none" stroke="#374151" strokeWidth="3" strokeLinecap="round" />
         <path d={fillArc} fill="none" stroke={color} strokeWidth="3" strokeLinecap="round" />
         <circle cx={dotX} cy={dotY} r={2.5} fill={color} />
@@ -179,6 +181,17 @@ function Knob({ label, value, min, max, step = 0.01, decimals = 2, unit = '', on
       <span className="text-[9px] font-mono text-white leading-none">
         {value.toFixed(decimals)}{unit}
       </span>
+      <input
+        type="range"
+        min={min}
+        max={max}
+        step={step}
+        value={value}
+        onChange={e => onChange(Number(e.target.value))}
+        className="mt-2 w-full sm:hidden accent-transparent"
+        style={{ accentColor: color }}
+        aria-label={label}
+      />
     </div>
   );
 }
