@@ -123,19 +123,20 @@ interface KnobProps {
 }
 
 function Knob({ label, value, min, max, step = 0.01, decimals = 2, unit = '', onChange, color = '#8b5cf6', fullWidth, defaultValue }: KnobProps) {
-  const dragRef = useRef<{ startY: number; startVal: number } | null>(null);
+  const dragRef = useRef<{ startX: number; startY: number; startVal: number } | null>(null);
 
   const handlePointerDown = useCallback((e: React.PointerEvent) => {
     e.preventDefault();
-    dragRef.current = { startY: e.clientY, startVal: value };
+    dragRef.current = { startX: e.clientX, startY: e.clientY, startVal: value };
     (e.target as HTMLElement).setPointerCapture(e.pointerId);
   }, [value]);
 
   const handlePointerMove = useCallback((e: React.PointerEvent) => {
     if (!dragRef.current) return;
     const dy = dragRef.current.startY - e.clientY;
+    const dx = e.clientX - dragRef.current.startX;
     const range = max - min;
-    const delta = (dy / 100) * range;
+    const delta = ((dy + dx) / 100) * range;
     const newVal = Math.max(min, Math.min(max, dragRef.current.startVal + delta));
     onChange(Math.round(newVal / step) * step);
   }, [min, max, step, onChange]);
@@ -162,7 +163,7 @@ function Knob({ label, value, min, max, step = 0.01, decimals = 2, unit = '', on
   const dotY = cy + (r - 4) * Math.sin(angle);
 
   return (
-    <div className={`flex flex-col items-center gap-0.5 cursor-ns-resize select-none ${fullWidth ? 'w-full' : 'min-w-[64px] sm:min-w-[52px]'} touch-none p-1`}
+    <div className={`flex flex-col items-center gap-0.5 cursor-ew-resize select-none ${fullWidth ? 'w-full' : 'min-w-[64px] sm:min-w-[52px]'} touch-none p-1`}
       style={{ touchAction: 'none' }}
       onPointerDown={handlePointerDown}
       onPointerMove={handlePointerMove}
