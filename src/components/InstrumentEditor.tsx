@@ -366,7 +366,7 @@ export default function InstrumentEditor() {
         >＋ Add Track</button>
       </div>
 
-      <div className="p-3 max-h-[75vh] overflow-y-auto overscroll-contain space-y-3">
+      <div className="p-3 lg:max-h-[75vh] lg:overflow-y-auto lg:overscroll-contain space-y-3">
 
         {/* ── ADD TAB ── */}
         {activeEditorTab === 'add' && (

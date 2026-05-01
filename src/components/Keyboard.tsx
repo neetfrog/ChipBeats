@@ -58,6 +58,7 @@ export default function Keyboard() {
   const setKeyboardInstrument = useSequencerStore(s => s.setKeyboardInstrument);
   const [activeNotes, setActiveNotes] = useState<Set<string>>(new Set());
   const activeNotesRef = useRef(activeNotes);
+  const activePointersRef = useRef<Map<number, string>>(new Map());
   const [pianoView, setPianoView] = useState(false);
 
   // Get the selected keyboard instrument, or pick any available one
@@ -80,22 +81,36 @@ export default function Keyboard() {
     activeNotesRef.current = activeNotes;
   }, [activeNotes]);
 
-  const playKey = useCallback((key: string, noteOffset: number) => {
+  const releaseKeyForPointer = useCallback((pointerId: number) => {
+    const key = activePointersRef.current.get(pointerId);
+    if (!key) return;
+    activePointersRef.current.delete(pointerId);
+
+    const stillHeld = Array.from(activePointersRef.current.values()).some(activeKey => activeKey === key);
+    if (stillHeld) return;
+
+    setActiveNotes(map => {
+      const next = new Set(map);
+      next.delete(key);
+      return next;
+    });
+  }, []);
+
+  const playKey = useCallback((key: string, noteOffset: number, pointerId?: number) => {
     const instrument = synthInstrument;
     if (!instrument) return;
+
+    if (typeof pointerId === 'number') {
+      activePointersRef.current.set(pointerId, key);
+    }
+
     setActiveNotes(map => {
       const next = new Set(map);
       next.add(key);
       return next;
     });
+
     playInstrument(instrument, 1, false, 0, noteOffset);
-    window.setTimeout(() => {
-      setActiveNotes(map => {
-        const next = new Set(map);
-        next.delete(key);
-        return next;
-      });
-    }, 220);
   }, [synthInstrument]);
 
   useEffect(() => {
@@ -157,7 +172,7 @@ export default function Keyboard() {
   }
 
   return (
-    <div className="w-full rounded-2xl border border-gray-800/80 shadow-xl" style={{ background: 'rgba(10,14,25,0.95)' }}>
+    <div className="w-full rounded-2xl border border-gray-800/80 shadow-xl" style={{ background: 'rgba(10,14,25,0.95)', touchAction: 'none' }}>
       {/* Header */}
       <div className="flex items-center justify-between px-3 pt-2.5 pb-2 border-b border-gray-800/60">
         <div className="flex items-center gap-3">
@@ -209,9 +224,17 @@ export default function Keyboard() {
                   <button
                     key={lowerKey}
                     type="button"
-                    onClick={() => playKey(lowerKey, noteOffset)}
+                    onPointerDown={(e) => {
+                      e.preventDefault();
+                      playKey(lowerKey, noteOffset, e.pointerId);
+                    }}
+                    onPointerUp={(e) => {
+                      e.preventDefault();
+                      releaseKeyForPointer(e.pointerId);
+                    }}
+                    onPointerCancel={(e) => releaseKeyForPointer(e.pointerId)}
                     className={cn(
-                      'absolute bottom-0 flex flex-col items-center justify-end rounded-b-xl border border-slate-300 bg-white text-slate-900 transition-all',
+                      'absolute bottom-0 flex flex-col items-center justify-end rounded-b-xl border border-slate-300 bg-white text-slate-900 transition-all touch-none',
                       isActive
                         ? 'bg-slate-800 text-white border-slate-600 shadow-[0_0_0_4px_rgba(15,23,42,0.3)]'
                         : 'hover:bg-slate-100'
@@ -244,7 +267,15 @@ export default function Keyboard() {
                     displayKey={displayKey}
                     noteOffset={noteOffset}
                     isActive={isActive}
-                    onClick={() => playKey(lowerKey, noteOffset)}
+                    onPointerDown={(e) => {
+                      e.preventDefault();
+                      playKey(lowerKey, noteOffset, e.pointerId);
+                    }}
+                    onPointerUp={(e) => {
+                      e.preventDefault();
+                      releaseKeyForPointer(e.pointerId);
+                    }}
+                    onPointerCancel={(e) => releaseKeyForPointer(e.pointerId)}
                   />
                 );
               })}
@@ -262,7 +293,15 @@ export default function Keyboard() {
                     displayKey={displayKey}
                     noteOffset={noteOffset}
                     isActive={isActive}
-                    onClick={() => playKey(lowerKey, noteOffset)}
+                    onPointerDown={(e) => {
+                      e.preventDefault();
+                      playKey(lowerKey, noteOffset, e.pointerId);
+                    }}
+                    onPointerUp={(e) => {
+                      e.preventDefault();
+                      releaseKeyForPointer(e.pointerId);
+                    }}
+                    onPointerCancel={(e) => releaseKeyForPointer(e.pointerId)}
                   />
                 );
               })}
@@ -280,7 +319,15 @@ export default function Keyboard() {
                     displayKey={displayKey}
                     noteOffset={noteOffset}
                     isActive={isActive}
-                    onClick={() => playKey(lowerKey, noteOffset)}
+                    onPointerDown={(e) => {
+                      e.preventDefault();
+                      playKey(lowerKey, noteOffset, e.pointerId);
+                    }}
+                    onPointerUp={(e) => {
+                      e.preventDefault();
+                      releaseKeyForPointer(e.pointerId);
+                    }}
+                    onPointerCancel={(e) => releaseKeyForPointer(e.pointerId)}
                   />
                 );
               })}
@@ -296,19 +343,22 @@ export default function Keyboard() {
   );
 }
 
-const KeyButton = memo(function KeyButton({ displayKey, noteOffset, isActive, onClick }: { displayKey: string; noteOffset: number; isActive: boolean; onClick?: () => void }) {
+const KeyButton = memo(function KeyButton({ displayKey, noteOffset, isActive, onPointerDown, onPointerUp, onPointerCancel }: { displayKey: string; noteOffset: number; isActive: boolean; onPointerDown?: (e: React.PointerEvent<HTMLButtonElement>) => void; onPointerUp?: (e: React.PointerEvent<HTMLButtonElement>) => void; onPointerCancel?: (e: React.PointerEvent<HTMLButtonElement>) => void }) {
   const noteName = getNoteNameFromOffset(noteOffset);
   
   return (
     <button
       className={cn(
-        'w-9 h-14 rounded-lg border transition-all flex flex-col items-center justify-center',
+        'w-9 h-14 rounded-lg border transition-all flex flex-col items-center justify-center touch-none',
         isActive
           ? 'bg-indigo-500 border-indigo-300 shadow-lg shadow-indigo-500/30 text-white cursor-pointer ring-2 ring-indigo-400/40'
           : 'bg-gray-800 border-gray-700 hover:border-gray-600 text-gray-400 hover:text-gray-300 cursor-pointer'
       )}
-      onClick={onClick}
-      title={`${displayKey} = ${noteName} (click to play)`}
+      onPointerDown={onPointerDown}
+      onPointerUp={onPointerUp}
+      onPointerCancel={onPointerCancel}
+      onClick={(e) => e.preventDefault()}
+      title={`${displayKey} = ${noteName} (touch or click to play)`}
       type="button"
     >
       <div className="text-[10px] font-bold leading-none">{displayKey}</div>
