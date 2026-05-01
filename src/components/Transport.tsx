@@ -117,10 +117,10 @@ export default memo(function Transport() {
     <div className="flex flex-col gap-1.5">
 
       {/* ── Row 1: Logo + Transport + BPM + Volume ── */}
-      <div className="flex items-center gap-1 flex-wrap">
+      <div className="flex items-center gap-1 flex-nowrap overflow-x-auto min-w-0">
 
         {/* Logo */}
-        <div className="flex items-baseline gap-1 mr-1">
+        <div className="hidden sm:flex items-baseline gap-1 mr-1 flex-shrink-0">
           <span className="text-lg font-black tracking-tight text-green-400" style={{ textShadow: '0 0 10px #4ade80aa' }}>
             CHIP
           </span>
@@ -130,7 +130,7 @@ export default memo(function Transport() {
         </div>
 
         {/* Play / Pause */}
-        <div className="flex gap-1.5">
+        <div className="flex gap-1.5 flex-shrink-0">
           <button
             onClick={isPlaying ? pause : play}
             className={`px-3 py-1.5 rounded-lg font-bold text-[10px] tracking-widest transition-all active:scale-95 ${
@@ -145,82 +145,49 @@ export default memo(function Transport() {
 
         {/* BPM */}
         <div
-          className="flex items-center gap-1.5 bg-gray-800 rounded-lg px-2 py-1 cursor-ns-resize"
+          className="flex items-center gap-1 bg-gray-800 rounded-lg px-1.5 py-1 cursor-ns-resize"
           onWheel={handleBpmWheel}
         >
           <button
             onClick={() => setBpm(Math.max(BPM_MIN, bpm - 1))}
-            className="text-gray-500 hover:text-white font-bold text-sm w-4 text-center leading-none"
+            className="text-gray-500 hover:text-white font-bold text-xs w-4 text-center leading-none"
           >−</button>
-          <div className="text-center min-w-[52px]">
+          <div className="text-center min-w-[40px]">
             <input
               ref={bpmInputRef}
               type="number"
               min={BPM_MIN} max={BPM_MAX}
               value={bpm}
               onChange={e => setBpm(Number(e.target.value))}
-              className="w-full bg-transparent text-green-400 font-mono font-bold text-lg leading-none text-center outline-none [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
+              className="w-full bg-transparent text-green-400 font-mono font-bold text-base leading-none text-center outline-none [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
             />
           </div>
           <button
             onClick={() => setBpm(Math.min(BPM_MAX, bpm + 1))}
-            className="text-gray-500 hover:text-white font-bold text-sm w-4 text-center leading-none"
+            className="text-gray-500 hover:text-white font-bold text-xs w-4 text-center leading-none"
           >+</button>
         </div>
 
         {/* Tap tempo */}
         <button
           onClick={tapTempo}
-          className="px-2 py-1 rounded-lg bg-gray-800 text-gray-400 hover:text-green-400 hover:bg-gray-700 font-bold text-[9px] tracking-widest transition-all active:scale-90 active:bg-gray-600"
+          className="px-1.5 py-1 rounded-lg bg-gray-800 text-gray-400 hover:text-green-400 hover:bg-gray-700 font-bold text-[8px] tracking-widest transition-all active:scale-90 active:bg-gray-600"
           title="Tap Tempo (T)"
         >TAP</button>
 
         {/* Volume */}
-        <div className="flex items-center gap-1.5 bg-gray-800 rounded-lg px-2 py-1">
-          <span className="text-gray-400 text-[8px] uppercase tracking-widest">VOL</span>
+        <div className="flex items-center gap-1 bg-gray-800 rounded-lg px-1.5 py-1">
+          <span className="text-gray-400 text-[7px] uppercase tracking-widest">VOL</span>
           <input
             type="range" min={0} max={1} step={0.01} value={masterVolume}
             onChange={e => setMasterVolume(Number(e.target.value))}
-            className="w-16 sm:w-20 accent-purple-500"
+            className="w-12 sm:w-16 accent-purple-500"
           />
-          <span className="text-purple-400 text-[9px] font-mono w-7">{Math.round(masterVolume * 100)}%</span>
+          <span className="text-purple-400 text-[8px] font-mono w-6">{Math.round(masterVolume * 100)}%</span>
         </div>
 
-        {/* Sound Pack selector (always visible) */}
-        <select
-          value={currentSoundPack}
-          onChange={(e) => setSoundPack(e.target.value as any)}
-          className="px-2 py-1 rounded-lg text-[9px] font-bold bg-gray-700 text-gray-300 hover:text-white transition-all border border-gray-600 outline-none cursor-pointer"
-          title="Sound Pack (affects all instruments)"
-        >
-          <option value="default">🎚 Default</option>
-          <option value="ambient">☁️ Ambient</option>
-          <option value="chiptune">🎮 Chiptune</option>
-          <option value="synthwave">🌅 Synthwave</option>
-          <option value="lo-fi">📻 Lo-Fi</option>
-          <option value="hiphop">🎧 Hip-Hop</option>
-        </select>
-
-        {/* Pattern Preset selector */}
-        <select
-          value={patternPreset}
-          onChange={(e) => {
-            const selectedId = e.target.value;
-            setPatternPreset(''); // reset to placeholder after applying
-            if (!selectedId) return;
-            applyPatternPreset(selectedId);
-          }}
-          className="px-2 py-1 rounded-lg text-[9px] font-bold bg-gray-700 text-gray-300 hover:text-white transition-all border border-gray-600 outline-none cursor-pointer"
-          title="Pattern Preset (replace current pattern)"
-        >
-          <option value="">🎵 Pattern Presets</option>
-          {makePresetPatterns(instruments).map(p => (
-            <option key={p.id} value={p.id}>{p.name}</option>
-          ))}
-        </select>
-
         {/* Undo / Redo */}
-        <div className="flex gap-1 ml-auto">
+        <div className="flex gap-1 ml-auto flex-shrink-0">
           <button
             onClick={undo}
             disabled={past.length === 0}
@@ -311,6 +278,37 @@ export default memo(function Transport() {
             onClick={() => { saveToStorage(); }}
             className="px-3 py-1 rounded-lg text-[9px] font-bold bg-gray-700 text-green-400 hover:bg-gray-600 transition-all"
           >💾 Save</button>
+          <div className="w-full sm:w-auto flex flex-col gap-1 sm:flex-row sm:items-center">
+            <select
+              value={currentSoundPack}
+              onChange={(e) => setSoundPack(e.target.value as any)}
+              className="px-2 py-1 rounded-lg text-[9px] font-bold bg-gray-700 text-gray-300 hover:text-white transition-all border border-gray-600 outline-none cursor-pointer"
+              title="Sound Pack (affects all instruments)"
+            >
+              <option value="default">🎚 Default</option>
+              <option value="ambient">☁️ Ambient</option>
+              <option value="chiptune">🎮 Chiptune</option>
+              <option value="synthwave">🌅 Synthwave</option>
+              <option value="lo-fi">📻 Lo-Fi</option>
+              <option value="hiphop">🎧 Hip-Hop</option>
+            </select>
+            <select
+              value={patternPreset}
+              onChange={(e) => {
+                const selectedId = e.target.value;
+                setPatternPreset(''); // reset to placeholder after applying
+                if (!selectedId) return;
+                applyPatternPreset(selectedId);
+              }}
+              className="px-2 py-1 rounded-lg text-[9px] font-bold bg-gray-700 text-gray-300 hover:text-white transition-all border border-gray-600 outline-none cursor-pointer"
+              title="Pattern Preset (replace current pattern)"
+            >
+              <option value="">🎵 Pattern Presets</option>
+              {makePresetPatterns(instruments).map(p => (
+                <option key={p.id} value={p.id}>{p.name}</option>
+              ))}
+            </select>
+          </div>
           <button
             onClick={() => {
               if (window.confirm('Reset everything? This cannot be undone.')) resetAll();

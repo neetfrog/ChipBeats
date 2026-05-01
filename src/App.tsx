@@ -200,9 +200,19 @@ export default function App() {
           {showModal && (
             <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-4">
               <div className="w-full max-w-lg rounded-xl border border-gray-700 bg-slate-900 p-4 text-sm text-gray-100">
-                <div className="flex items-center justify-between pb-2">
-                  <h2 className="text-base font-bold uppercase tracking-wider">Quickstart</h2>
-                  <button onClick={() => setShowModal(false)} className="text-sm font-bold text-gray-300 hover:text-white">✕</button>
+                <div className="flex flex-col gap-2 pb-2 sm:flex-row sm:items-center sm:justify-between">
+                  <div className="flex items-baseline gap-1">
+                    <span className="text-lg font-black tracking-tight text-green-400" style={{ textShadow: '0 0 8px #4ade80aa' }}>
+                      CHIP
+                    </span>
+                    <span className="text-xl font-black tracking-tight text-purple-400" style={{ textShadow: '0 0 10px #a78bfaaa' }}>
+                      BEAT
+                    </span>
+                  </div>
+                  <div className="flex items-center gap-3">
+                    <h2 className="text-base font-bold uppercase tracking-wider">Quickstart</h2>
+                    <button onClick={() => setShowModal(false)} className="text-sm font-bold text-gray-300 hover:text-white">✕</button>
+                  </div>
                 </div>
                 <p className="pb-2 text-[11px] text-gray-300">A quick intro to get started with the drum machine. Visit <a href="https://nefas.tv" target="_blank" rel="noreferrer" className="text-green-300 hover:text-green-400">nefas.tv</a> for more info.</p>
                 <ol className="list-decimal list-inside space-y-1 text-[11px] text-gray-200">
