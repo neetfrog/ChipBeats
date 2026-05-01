@@ -3,7 +3,7 @@ import { SequencerState, InstrumentParams, Pattern, Step } from '../types';
 import { DEFAULT_INSTRUMENTS, defaultPattern, makePresetPatterns, makeStep, applySoundPack, getPresetInstruments } from '../audio/presets';
 import {
   playInstrument, getAudioContext, setMasterVolume,
-  setCompressorEnabled, getAnalyser,
+  setCompressorEnabled, getAnalyser, stopAllAudio,
 } from '../audio/synth';
 
 // ── Persistence key ──────────────────────────────────────────────────────────
@@ -196,9 +196,9 @@ export const useSequencerStore = create<Store>((set, get) => ({
     const state = get();
     if (state.isPlaying) return;
 
-    internalStep = state.currentStep > 0 ? state.currentStep : 0;
+    internalStep = state.currentStep >= 0 ? state.currentStep : 0;
     nextStepTime = ctx.currentTime + 0.05;
-    set({ isPlaying: true, currentStep: 0 });
+    set({ isPlaying: true, currentStep: state.currentStep >= 0 ? state.currentStep : 0 });
 
     // Build instrument lookup map for O(1) access in hot loop
     let instMap = new Map<string, import('../types').InstrumentParams>();
@@ -253,6 +253,7 @@ export const useSequencerStore = create<Store>((set, get) => ({
   pause: () => {
     if (schedulerTimer) clearInterval(schedulerTimer);
     schedulerTimer = null;
+    stopAllAudio();
     set({ isPlaying: false });
   },
 
@@ -260,6 +261,7 @@ export const useSequencerStore = create<Store>((set, get) => ({
     if (schedulerTimer) clearInterval(schedulerTimer);
     schedulerTimer = null;
     internalStep = 0;
+    stopAllAudio();
     set({ isPlaying: false, currentStep: -1 });
   },
 

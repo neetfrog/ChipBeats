@@ -9,6 +9,9 @@ let reverbGain: GainNode | null = null;
 let reverbOutGain: GainNode | null = null;
 let nodePool: NodePool | null = null;
 
+const activeSourceNodes = new Set<AudioScheduledSourceNode>();
+const activeAudioNodes = new Set<AudioNode>();
+
 let analyserNode: AnalyserNode | null = null;
 let reverbDebugEnabled = false;
 let reverbDebugAnalyser: AnalyserNode | null = null;
@@ -63,6 +66,36 @@ function _buildGraph() {
   reverbOutGain.connect(ctx.destination);
   if (reverbDebugAnalyser) reverbOutGain.connect(reverbDebugAnalyser);
   nodePool = new NodePool(ctx, 48);
+}
+
+function _trackNode<T extends AudioNode>(node: T): T {
+  activeAudioNodes.add(node);
+  return node;
+}
+
+function _trackSource<T extends AudioScheduledSourceNode>(src: T): T {
+  activeSourceNodes.add(src);
+  src.onended = () => activeSourceNodes.delete(src);
+  return src;
+}
+
+export function stopAllAudio() {
+  if (!audioCtx) return;
+  const now = audioCtx.currentTime;
+  activeSourceNodes.forEach(src => {
+    try { src.stop(now + 0.01); } catch {};
+  });
+  activeSourceNodes.clear();
+
+  activeAudioNodes.forEach(node => {
+    try { node.disconnect(); } catch {};
+  });
+  activeAudioNodes.clear();
+
+  if (nodePool) {
+    nodePool.dispose();
+    nodePool = new NodePool(audioCtx, 48);
+  }
 }
 
 /** Synthetic exponential decay reverb IR */
@@ -229,7 +262,7 @@ export function playInstrument(
   const t2 = t1 + Math.max(inst.decay, 0.001);             // end of decay
   const t3 = t2 + Math.max(inst.release, 0.001);           // end of release
 
-  const env = nodePool?.getGain() ?? ctx.createGain();
+  const env = _trackNode(nodePool?.getGain() ?? ctx.createGain());
   env.gain.setValueAtTime(0.0001, t0);
   env.gain.linearRampToValueAtTime(vol, t1);
   env.gain.linearRampToValueAtTime(vol * Math.max(inst.sustain, 0.0001), t2);
@@ -237,11 +270,11 @@ export function playInstrument(
   env.gain.exponentialRampToValueAtTime(0.0001, t3);
 
   // ── Pan ──
-  const panner = nodePool?.getPanner() ?? ctx.createStereoPanner();
+  const panner = _trackNode(nodePool?.getPanner() ?? ctx.createStereoPanner());
   panner.pan.value = Math.max(-1, Math.min(1, inst.pan));
 
   // ── Filter ──
-  const filter = nodePool?.getFilter() ?? ctx.createBiquadFilter();
+  const filter = _trackNode(nodePool?.getFilter() ?? ctx.createBiquadFilter());
   filter.type = inst.filterType;
   const baseFilterFreq = Math.max(20, Math.min(20000, inst.filterFreq));
   filter.frequency.setValueAtTime(baseFilterFreq, t0);
@@ -255,13 +288,14 @@ export function playInstrument(
   filter.Q.value = Math.max(0.0001, inst.filterQ);
 
   // ── Bit crusher ──
-  const crusher = nodePool?.getWaveShaper() ?? ctx.createWaveShaper();
+  const crusher = _trackNode(nodePool?.getWaveShaper() ?? ctx.createWaveShaper());
   crusher.curve = getBitCrusherCurve(Math.max(1, Math.min(16, inst.bitCrush)));
   crusher.oversample = '2x';
 
   // ── Distortion ──
   const distortion = inst.distortion > 0.01 ? (nodePool?.getWaveShaper() ?? ctx.createWaveShaper()) : null;
   if (distortion) {
+    _trackNode(distortion);
     distortion.curve = getDistortionCurve(inst.distortion);
     distortion.oversample = '4x';
   }
@@ -269,7 +303,7 @@ export function playInstrument(
   // ── Per-instrument reverb send ──
   let revSend: GainNode | null = null;
   if (reverbGain && inst.reverbMix > 0) {
-    revSend = nodePool?.getGain() ?? ctx.createGain();
+    revSend = _trackNode(nodePool?.getGain() ?? ctx.createGain());
     revSend.gain.value = inst.reverbMix;
     env.connect(revSend);
     revSend.connect(reverbGain);
@@ -288,11 +322,11 @@ export function playInstrument(
   let dlyFb: GainNode | null = null;
   let dlySend: GainNode | null = null;
   if (inst.delayMix > 0.01) {
-    dly = nodePool?.getDelay() ?? ctx.createDelay(1.0);
+    dly = _trackNode(nodePool?.getDelay() ?? ctx.createDelay(1.0));
     dly.delayTime.value = Math.max(0.01, inst.delayTime);
-    dlyFb = nodePool?.getGain() ?? ctx.createGain();
+    dlyFb = _trackNode(nodePool?.getGain() ?? ctx.createGain());
     dlyFb.gain.value = Math.min(0.92, inst.delayFeedback);
-    dlySend = nodePool?.getGain() ?? ctx.createGain();
+    dlySend = _trackNode(nodePool?.getGain() ?? ctx.createGain());
     dlySend.gain.value = inst.delayMix;
     env.connect(dlySend);
     dlySend.connect(dly);
@@ -323,7 +357,10 @@ export function playInstrument(
     if (dlySend) keepAlive.push(dlySend);
 
     setTimeout(() => {
-      keepAlive.forEach(node => { try { node.disconnect(); } catch {} });
+      keepAlive.forEach(node => {
+        try { node.disconnect(); } catch {}
+        activeAudioNodes.delete(node);
+      });
       if (nodePool) {
         nodePool.returnGain(env);
         nodePool.returnPanner(panner);
@@ -341,7 +378,7 @@ export function playInstrument(
   // ── Source(s) ──
   if (inst.wave === 'noise') {
     const nBuf = getNoiseBuffer(ctx);
-    const src = ctx.createBufferSource();
+    const src = _trackSource(ctx.createBufferSource());
     src.buffer = nBuf;
     src.loop = true;
     src.connect(env);
@@ -361,7 +398,7 @@ export function playInstrument(
       notes.forEach((semi, idx) => {
         const nt = t0 + idx * inst.arpSpeed;
         if (nt >= t3) return;
-        const osc = ctx.createOscillator();
+        const osc = _trackSource(ctx.createOscillator());
         osc.type = inst.wave as OscillatorType;
         const freq = semisToFreq(semi + noteOffset, inst.frequency);
         osc.frequency.setValueAtTime(freq, nt);
@@ -372,7 +409,7 @@ export function playInstrument(
           );
         }
         _applyVibrato(ctx, osc, inst, nt, t3);
-        const noteGate = nodePool?.getGain() ?? ctx.createGain();
+        const noteGate = _trackNode(nodePool?.getGain() ?? ctx.createGain());
         noteGate.gain.setValueAtTime(1, nt);
         noteGate.gain.setValueAtTime(0.001, nt + inst.arpSpeed * 0.85);
         osc.connect(noteGate);
@@ -380,7 +417,13 @@ export function playInstrument(
         osc.start(nt);
         sources.push(osc);
         if (nodePool) {
-          setTimeout(() => { try { noteGate.disconnect(); nodePool?.returnGain(noteGate); } catch {} }, Math.max(0, (t3 - ctx.currentTime) * 1000 + 120));
+          setTimeout(() => {
+            try {
+              noteGate.disconnect();
+              activeAudioNodes.delete(noteGate);
+              nodePool?.returnGain(noteGate);
+            } catch {}
+          }, Math.max(0, (t3 - ctx.currentTime) * 1000 + 120));
         }
       });
       stopAll(sources);
@@ -389,7 +432,7 @@ export function playInstrument(
       // Possibly stacked oscillators (chord = arpNotes played simultaneously)
       const playNotes = inst.arpNotes.length > 0 ? inst.arpNotes : [noteOffset];
       playNotes.forEach(semi => {
-        const osc = ctx.createOscillator();
+        const osc = _trackSource(ctx.createOscillator());
         osc.type = inst.wave as OscillatorType;
         const freq = semisToFreq(semi + (inst.arpNotes.length > 0 ? noteOffset : 0), inst.frequency);
         osc.frequency.setValueAtTime(freq, t0);
@@ -413,8 +456,8 @@ export function playInstrument(
 
   // ── Tremolo ──
   if (inst.tremoloDepth > 0 && inst.tremoloRate > 0) {
-    const tremoloLFO = ctx.createOscillator();
-    const tremoloGain = nodePool?.getGain() ?? ctx.createGain();
+    const tremoloLFO = _trackSource(ctx.createOscillator());
+    const tremoloGain = _trackNode(nodePool?.getGain() ?? ctx.createGain());
     tremoloLFO.frequency.value = inst.tremoloRate;
     tremoloGain.gain.value = inst.tremoloDepth * vol * 0.5;
     tremoloLFO.connect(tremoloGain);
@@ -422,7 +465,13 @@ export function playInstrument(
     tremoloLFO.start(t0);
     tremoloLFO.stop(t3 + 0.05);
     if (nodePool) {
-      setTimeout(() => { try { tremoloGain.disconnect(); nodePool?.returnGain(tremoloGain); } catch {} }, Math.max(0, (t3 - ctx.currentTime) * 1000 + 120));
+      setTimeout(() => {
+        try {
+          tremoloGain.disconnect();
+          activeAudioNodes.delete(tremoloGain);
+          nodePool?.returnGain(tremoloGain);
+        } catch {}
+      }, Math.max(0, (t3 - ctx.currentTime) * 1000 + 120));
     }
   }
 }
@@ -440,15 +489,15 @@ function _playPulse(
   const freq = semisToFreq(noteOffset, inst.frequency);
   const pw = Math.max(0.05, Math.min(0.95, inst.pulseWidth));
 
-  const osc1 = ctx.createOscillator();
-  const osc2 = ctx.createOscillator();
+  const osc1 = _trackSource(ctx.createOscillator());
+  const osc2 = _trackSource(ctx.createOscillator());
+  const inv = _trackNode(ctx.createGain());
   osc1.type = 'sawtooth';
   osc2.type = 'sawtooth';
   osc1.frequency.setValueAtTime(freq, t0);
   osc2.frequency.setValueAtTime(freq, t0);
   osc2.detune.value = pw * 100;
 
-  const inv = ctx.createGain();
   inv.gain.value = -1;
 
   osc1.connect(dest);
@@ -467,8 +516,8 @@ function _applyVibrato(
   t3: number
 ) {
   if (inst.vibratoDepth <= 0 || inst.vibratoRate <= 0) return;
-  const lfo = ctx.createOscillator();
-  const lfoGain = ctx.createGain();
+  const lfo = _trackSource(ctx.createOscillator());
+  const lfoGain = _trackNode(ctx.createGain());
   lfo.frequency.value = inst.vibratoRate;
   lfoGain.gain.value = inst.frequency * (Math.pow(2, inst.vibratoDepth / 12) - 1);
   lfo.connect(lfoGain);

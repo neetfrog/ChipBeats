@@ -95,14 +95,14 @@ const StepButton = memo<{
 StepButton.displayName = 'StepButton';
 
 // ── Memoized step header indicator ──────────────────────────────────────────
-const StepHeader = memo<{ stepCount: number; currentStep: number; isPlaying: boolean }>(
-  ({ stepCount, currentStep, isPlaying }) => (
+const StepHeader = memo<{ stepCount: number; currentStep: number }>(
+  ({ stepCount, currentStep }) => (
     <div className="flex items-center mb-0.5">
       <div className="w-24 sm:w-28 shrink-0" />
       <div className="flex gap-0.5 flex-1 min-w-0">
         {Array.from({ length: stepCount }, (_, si) => {
           const isBar = si % GROUP === 0;
-          const isCurrent = si === currentStep && isPlaying;
+          const isCurrent = si === currentStep;
           return (
             <div
               key={si}
@@ -349,7 +349,7 @@ export default function StepGrid() {
       })()}
 
       {/* ── Step number header ── */}
-      <StepHeader stepCount={pattern.stepCount} currentStep={currentStep} isPlaying={isPlaying} />
+      <StepHeader stepCount={pattern.stepCount} currentStep={currentStep} />
 
       {/* ── Tracks ── */}
       {pattern.tracks.map((track, ti) => {
@@ -408,7 +408,7 @@ export default function StepGrid() {
                   velocity={step.velocity}
                   accent={step.accent}
                   note={step.note}
-                  isCurrent={si === currentStep && isPlaying}
+                  isCurrent={si === currentStep}
                   instColor={inst.color}
                   muted={muted}
                   onPointerDown={handleStepPointerDown}
