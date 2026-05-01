@@ -1,5 +1,5 @@
-import { useEffect, useRef, useState, memo } from 'react';
-import { getAudioContext, getMasterGain } from '../audio/synth';
+import { useEffect, useMemo, useRef, useState, memo } from 'react';
+import { getAnalyser } from '../audio/synth';
 import { useSequencerStore } from '../store/sequencerStore';
 
 type Mode = 'spectrum' | 'waveform' | 'bars';
@@ -15,10 +15,22 @@ export default memo(function Visualizer() {
 
   const isPlaying = useSequencerStore(s => s.isPlaying);
   const currentStep = useSequencerStore(s => s.currentStep);
+  const currentPatternId = useSequencerStore(s => s.currentPatternId);
+  const patterns = useSequencerStore(s => s.patterns);
+  const instruments = useSequencerStore(s => s.instruments);
+  const currentPattern = useMemo(
+    () => patterns.find(p => p.id === currentPatternId),
+    [patterns, currentPatternId],
+  );
+  const activeInstruments = useMemo(() => instruments.slice(0, 8), [instruments]);
   const isPlayingRef = useRef(isPlaying);
   const currentStepRef = useRef(currentStep);
+  const currentPatternRef = useRef(currentPattern);
+  const instrumentsRef = useRef(activeInstruments);
   isPlayingRef.current = isPlaying;
   currentStepRef.current = currentStep;
+  currentPatternRef.current = currentPattern;
+  instrumentsRef.current = activeInstruments;
 
   useEffect(() => {
     modeRef.current = mode;
@@ -29,15 +41,9 @@ export default memo(function Visualizer() {
     if (!canvas) return;
     const ctx2d = canvas.getContext('2d')!;
 
-    // Init analyser
     if (!analyserRef.current) {
       try {
-        const audioCtx = getAudioContext();
-        const analyser = audioCtx.createAnalyser();
-        analyser.fftSize = 512;
-        analyser.smoothingTimeConstant = 0.82;
-        getMasterGain().connect(analyser);
-        analyserRef.current = analyser;
+        analyserRef.current = getAnalyser();
       } catch { return; }
     }
 
@@ -126,7 +132,7 @@ export default memo(function Visualizer() {
         }
 
         // Beat indicator dots at top
-        const pattern = useSequencerStore.getState().patterns.find(p => p.id === useSequencerStore.getState().currentPatternId);
+        const pattern = currentPatternRef.current;
         if (pattern && isPlayingRef.current) {
           const step = currentStepRef.current;
           const stepCount = pattern.stepCount;
@@ -192,7 +198,7 @@ export default memo(function Visualizer() {
         ctx2d.stroke();
 
         // Instrument level meters on right
-        const activeInsts = useSequencerStore.getState().instruments.slice(0, 8);
+        const activeInsts = instrumentsRef.current;
         activeInsts.forEach((inst, idx) => {
           const energy = freqData[Math.floor(idx * 8)] / 255;
           const mh = H / activeInsts.length;
@@ -206,7 +212,7 @@ export default memo(function Visualizer() {
 
         // Active step highlighting
         if (isPlayingRef.current) {
-          const pattern = useSequencerStore.getState().patterns.find(p => p.id === useSequencerStore.getState().currentPatternId);
+          const pattern = currentPatternRef.current;
           if (pattern) {
             const step = currentStepRef.current;
             const x = (step / pattern.stepCount) * W;

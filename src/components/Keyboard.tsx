@@ -1,4 +1,4 @@
-import { useEffect, useState, useRef } from 'react';
+import { memo, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { playInstrument } from '../audio/synth';
 import { useSequencerStore } from '../store/sequencerStore';
 import { cn } from '../utils/cn';
@@ -56,21 +56,23 @@ export default function Keyboard() {
   const keyboardInstrumentId = useSequencerStore(s => s.keyboardInstrumentId);
   const setKeyboardEnabled = useSequencerStore(s => s.setKeyboardEnabled);
   const setKeyboardInstrument = useSequencerStore(s => s.setKeyboardInstrument);
-  const [activeNotes, setActiveNotes] = useState<Map<string, ActiveNote>>(new Map());
+  const [activeNotes, setActiveNotes] = useState<Set<string>>(new Set());
   const activeNotesRef = useRef(activeNotes);
   const [pianoView, setPianoView] = useState(false);
 
   // Get the selected keyboard instrument, or pick any available one
-  const synthInstrument = keyboardInstrumentId
-    ? instruments.find(i => i.id === keyboardInstrumentId)
-    : instruments.find(i => ['lead', 'bass', 'chord', 'blip'].includes(i.type)) || instruments[0];
+  const synthInstrument = useMemo(() => (
+    keyboardInstrumentId
+      ? instruments.find(i => i.id === keyboardInstrumentId)
+      : instruments.find(i => ['lead', 'bass', 'chord', 'blip'].includes(i.type)) || instruments[0]
+  ), [keyboardInstrumentId, instruments]);
 
   // Auto-set the keyboard instrument on first load
   useEffect(() => {
     if (!keyboardInstrumentId && synthInstrument) {
       setKeyboardInstrument(synthInstrument.id);
     }
-  }, []);
+  }, [keyboardInstrumentId, synthInstrument, setKeyboardInstrument]);
 
   if (!synthInstrument) return null;
 
@@ -78,20 +80,23 @@ export default function Keyboard() {
     activeNotesRef.current = activeNotes;
   }, [activeNotes]);
 
-  const playKey = (key: string, noteOffset: number) => {
+  const playKey = useCallback((key: string, noteOffset: number) => {
     const instrument = synthInstrument;
     if (!instrument) return;
-    const newNote: ActiveNote = { key, note: noteOffset };
-    setActiveNotes(map => new Map(map).set(key, newNote));
+    setActiveNotes(map => {
+      const next = new Set(map);
+      next.add(key);
+      return next;
+    });
     playInstrument(instrument, 1, false, 0, noteOffset);
-    setTimeout(() => {
+    window.setTimeout(() => {
       setActiveNotes(map => {
-        const n = new Map(map);
-        n.delete(key);
-        return n;
+        const next = new Set(map);
+        next.delete(key);
+        return next;
       });
     }, 220);
-  };
+  }, [synthInstrument]);
 
   useEffect(() => {
     if (!keyboardEnabled || !synthInstrument) return;
@@ -108,8 +113,11 @@ export default function Keyboard() {
       if (!instrument) return;
       e.preventDefault();
 
-      const newNote: ActiveNote = { key, note: noteOffset };
-      setActiveNotes(map => new Map(map).set(key, newNote));
+      setActiveNotes(map => {
+        const next = new Set(map);
+        next.add(key);
+        return next;
+      });
       playInstrument(instrument, 1, false, 0, noteOffset);
     }
 
@@ -120,9 +128,9 @@ export default function Keyboard() {
 
       e.preventDefault();
       setActiveNotes(map => {
-        const newMap = new Map(map);
-        newMap.delete(key);
-        return newMap;
+        const next = new Set(map);
+        next.delete(key);
+        return next;
       });
     }
 
@@ -288,7 +296,7 @@ export default function Keyboard() {
   );
 }
 
-function KeyButton({ displayKey, noteOffset, isActive, onClick }: { displayKey: string; noteOffset: number; isActive: boolean; onClick?: () => void }) {
+const KeyButton = memo(function KeyButton({ displayKey, noteOffset, isActive, onClick }: { displayKey: string; noteOffset: number; isActive: boolean; onClick?: () => void }) {
   const noteName = getNoteNameFromOffset(noteOffset);
   
   return (
@@ -307,4 +315,4 @@ function KeyButton({ displayKey, noteOffset, isActive, onClick }: { displayKey: 
       <div className="text-[7px] text-gray-500 leading-none mt-0.5">{noteName}</div>
     </button>
   );
-}
+});

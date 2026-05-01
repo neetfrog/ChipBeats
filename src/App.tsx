@@ -1,4 +1,4 @@
-import { useEffect, useState, Suspense, lazy } from 'react';
+import { useEffect, useMemo, useState, Suspense, lazy } from 'react';
 import Transport from './components/Transport';
 import StepGrid from './components/StepGrid';
 import Keyboard from './components/Keyboard';
@@ -24,7 +24,7 @@ export default function App() {
   const visualizerVisible = useSequencerStore(s => s.visualizerVisible);
   const themeMode = useSequencerStore(s => s.themeMode);
 
-  const theme = getTheme(themeMode);
+  const theme = useMemo(() => getTheme(themeMode), [themeMode]);
 
   // Apply CSS vars for theme
   useEffect(() => {

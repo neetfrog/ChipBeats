@@ -54,6 +54,14 @@ export default memo(function Transport() {
   const getProjectExportData = useSequencerStore(s => s.getProjectExportData);
 
   const currentPattern = patterns.find(p => p.id === currentPatternId)!;
+  const currentPatternRef = useRef(currentPattern);
+  const instrumentsRef = useRef(instruments);
+  const isPlayingRef = useRef(isPlaying);
+  const bpmRef = useRef(bpm);
+  currentPatternRef.current = currentPattern;
+  instrumentsRef.current = instruments;
+  isPlayingRef.current = isPlaying;
+  bpmRef.current = bpm;
   const [renamingId, setRenamingId] = useState<string | null>(null);
   const [renameVal, setRenameVal] = useState('');
   const [patternPreset, setPatternPreset] = useState('');
@@ -78,22 +86,23 @@ export default memo(function Transport() {
       const isSpaceKey = e.code === 'Space' || e.key === ' ' || e.key === 'Spacebar';
       if (isSpaceKey) {
         e.preventDefault();
-        isPlaying ? pause() : play();
+        isPlayingRef.current ? pause() : play();
       }
       if (e.code === 'KeyZ' && (e.ctrlKey || e.metaKey) && !e.shiftKey) { e.preventDefault(); undo(); }
       if (e.code === 'KeyZ' && (e.ctrlKey || e.metaKey) && e.shiftKey) { e.preventDefault(); redo(); }
       if (e.code === 'KeyY' && (e.ctrlKey || e.metaKey)) { e.preventDefault(); redo(); }
       if (e.code === 'KeyS' && (e.ctrlKey || e.metaKey)) { e.preventDefault(); saveToStorage(); }
-      if (e.code === 'ArrowUp') { e.preventDefault(); setBpm(Math.min(BPM_MAX, bpm + 1)); }
-      if (e.code === 'ArrowDown') { e.preventDefault(); setBpm(Math.max(BPM_MIN, bpm - 1)); }
+      if (e.code === 'ArrowUp') { e.preventDefault(); setBpm(Math.min(BPM_MAX, bpmRef.current + 1)); }
+      if (e.code === 'ArrowDown') { e.preventDefault(); setBpm(Math.max(BPM_MIN, bpmRef.current - 1)); }
       if (e.code === 'KeyT') tapTempo();
       
       // Track selection shortcuts (1-9)
       if (e.code >= 'Digit1' && e.code <= 'Digit9') {
         const trackIdx = parseInt(e.code[5]) - 1;
-        if (trackIdx < currentPattern.tracks.length) {
+        const currentPattern = currentPatternRef.current;
+        if (currentPattern && trackIdx < currentPattern.tracks.length) {
           const track = currentPattern.tracks[trackIdx];
-          const inst = instruments.find(i => i.id === track.instrumentId);
+          const inst = instrumentsRef.current.find(i => i.id === track.instrumentId);
           if (inst) {
             e.preventDefault();
             setEditingInstrument(inst.id);
@@ -105,7 +114,7 @@ export default memo(function Transport() {
     };
     window.addEventListener('keydown', handler);
     return () => window.removeEventListener('keydown', handler);
-  }, [isPlaying, bpm, play, pause, stop, setBpm, tapTempo, undo, redo, saveToStorage, currentPattern.tracks, instruments, setEditingInstrument, setShowEditor, setActiveEditorTab]);
+  }, [play, pause, setBpm, tapTempo, undo, redo, saveToStorage, setEditingInstrument, setShowEditor, setActiveEditorTab]);
 
   // BPM scroll wheel
   const handleBpmWheel = (e: React.WheelEvent) => {
