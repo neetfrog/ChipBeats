@@ -127,6 +127,7 @@ const Knob = memo(function Knob({ label, value, min, max, step = 0.01, decimals 
   const dragRef = useRef<{ startX: number; startY: number; startVal: number } | null>(null);
   const frameRef = useRef<number | null>(null);
   const pendingValueRef = useRef<number | null>(null);
+  const lastTapRef = useRef<{ time: number; x: number; y: number } | null>(null);
 
   useEffect(() => {
     setDisplayValue(value);
@@ -144,10 +145,23 @@ const Knob = memo(function Knob({ label, value, min, max, step = 0.01, decimals 
   }, [onChange]);
 
   const handlePointerDown = useCallback((e: React.PointerEvent) => {
+    if (e.pointerType === 'touch' && defaultValue !== undefined) {
+      const now = performance.now();
+      const lastTap = lastTapRef.current;
+      const dx = lastTap ? Math.abs(lastTap.x - e.clientX) : 0;
+      const dy = lastTap ? Math.abs(lastTap.y - e.clientY) : 0;
+      if (lastTap && now - lastTap.time < 300 && dx < 30 && dy < 30) {
+        onChange(defaultValue);
+        lastTapRef.current = null;
+        return;
+      }
+      lastTapRef.current = { time: now, x: e.clientX, y: e.clientY };
+    }
+
     e.preventDefault();
     dragRef.current = { startX: e.clientX, startY: e.clientY, startVal: displayValue };
     (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId);
-  }, [displayValue]);
+  }, [defaultValue, displayValue, onChange]);
 
   const handlePointerMove = useCallback((e: React.PointerEvent) => {
     if (!dragRef.current) return;
