@@ -25,8 +25,11 @@ jobs:
       - name: Build web
         run: npm run build:web
 
+      - name: Build Electron main process
+        run: npm run build:main
+
       - name: Build Electron apps
-        run: npm run build:electron
+        run: npm run build:electron:win
 
       - name: Get version from tag
         id: version
