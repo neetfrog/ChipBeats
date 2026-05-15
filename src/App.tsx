@@ -175,13 +175,24 @@ export default function App() {
 
           {/* ── Footer ── */}
           <div className="space-y-2 text-center">
-            <button
-              onClick={() => setShowModal(true)}
-              className="text-[10px] font-semibold uppercase tracking-wider text-green-300 hover:text-green-100"
-              style={{ background: 'transparent', border: 'none', padding: 0 }}
-            >
-              About
-            </button>
+            <div className="flex items-center justify-center gap-4 flex-wrap">
+              <button
+                onClick={() => setShowModal(true)}
+                className="text-[10px] font-semibold uppercase tracking-wider text-green-300 hover:text-green-100 transition-colors"
+                style={{ background: 'transparent', border: 'none', padding: 0 }}
+              >
+                About
+              </button>
+              <a
+                href="https://github.com/neetfrog/ChipBeats/releases"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="text-[10px] font-semibold uppercase tracking-wider text-blue-300 hover:text-blue-100 transition-colors"
+                style={{ textDecoration: 'none' }}
+              >
+                📥 Download Desktop App (Windows)
+              </a>
+            </div>
           </div>
 
           {showModal && (

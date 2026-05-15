@@ -1,12 +1,58 @@
 {
-  "name": "react-vite-tailwind",
+  "name": "chipbeats",
+  "displayName": "ChipBeats",
+  "description": "A chiptune-inspired drum sequencer for music production",
+  "author": "nefas",
+  "license": "MIT",
   "private": true,
-  "version": "0.0.0",
+  "version": "1.0.0",
   "type": "module",
+  "main": "dist/main/main.js",
+  "homepage": "./",
   "scripts": {
     "dev": "vite",
-    "build": "vite build",
-    "preview": "vite preview"
+    "build": "npm run build:web && npm run build:main && npm run build:electron",
+    "build:web": "vite build",
+    "build:main": "tsc src/main/main.ts --outDir dist/main --module esnext --target es2020 --skipLibCheck --esModuleInterop && tsc src/main/preload.ts --outDir dist/main --module commonjs --target es2020 --skipLibCheck --esModuleInterop",
+    "build:electron": "electron-builder",
+    "build:electron:win": "npm run build:web && npm run build:main && electron-builder --win --publish never",
+    "build:electron:portable": "npm run build:web && npm run build:main && electron-builder --win portable --publish never",
+    "preview": "vite preview",
+    "electron": "electron .",
+    "electron:dev": "concurrently \"npm run dev\" \"wait-on http://localhost:5173 && electron . --dev\"",
+    "pack": "electron-builder --dir",
+    "dist": "electron-builder"
+  },
+  "build": {
+    "appId": "tv.nefas.chipbeats",
+    "productName": "ChipBeats",
+    "asar": false,
+    "files": [
+      "dist/**/*",
+      "package.json"
+    ],
+    "directories": {
+      "buildResources": "assets"
+    },
+    "win": {
+      "target": [
+        "nsis",
+        "portable",
+        "zip"
+      ],
+      "forceCodeSigning": false
+    },
+    "nsis": {
+      "oneClick": false,
+      "allowToChangeInstallationDirectory": true,
+      "createDesktopShortcut": true,
+      "createStartMenuShortcut": true,
+      "shortcutName": "ChipBeats",
+      "packElevateHelper": false
+    },
+    "portable": {
+      "artifactName": "${productName}-${version}-portable.exe"
+    }
   },
   "dependencies": {
     "clsx": "2.1.1",
@@ -18,13 +64,19 @@
   },
   "devDependencies": {
     "@tailwindcss/vite": "4.1.17",
+    "@types/electron": "^1.6.10",
     "@types/node": "^22.0.0",
     "@types/react": "19.2.7",
     "@types/react-dom": "19.2.3",
     "@vitejs/plugin-react": "5.1.1",
+    "concurrently": "^8.2.0",
+    "electron": "^33.1.0",
+    "electron-builder": "^25.1.8",
+    "electron-is-dev": "^3.0.1",
     "tailwindcss": "4.1.17",
+    "terser": "^5.36.0",
     "typescript": "5.9.3",
     "vite": "7.2.4",
-    "vite-plugin-singlefile": "2.3.0"
+    "wait-on": "^8.0.1"
   }
 }

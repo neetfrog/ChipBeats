@@ -1,0 +1,79 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - "v*"
+
+jobs:
+  release:
+    runs-on: windows-latest
+    permissions:
+      contents: write
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: "npm"
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build web
+        run: npm run build:web
+
+      - name: Build Electron apps
+        run: npm run build:electron
+
+      - name: Get version from tag
+        id: version
+        run: |
+          $tag = "${{ github.ref }}".substring(10)
+          echo "VERSION=$tag" >> $env:GITHUB_OUTPUT
+
+      - name: Create Release
+        uses: softprops/action-gh-release@v1
+        with:
+          files: |
+            dist/ChipBeats-*.exe
+            dist/ChipBeats-*-portable.exe
+            dist/ChipBeats-*.zip
+          draft: false
+          prerelease: false
+          body: |
+            # ChipBeats ${{ steps.version.outputs.VERSION }}
+
+            ## Downloads
+
+            - **Installer (.exe)** - Standard Windows installer with uninstaller
+            - **Portable (.exe)** - No installation required, run directly
+            - **Zip** - Portable archive version
+
+            ## Changes
+
+            See [IMPROVEMENTS.md](https://github.com/${{ github.repository }}/blob/main/IMPROVEMENTS.md) for detailed changes.
+
+            ## Installation Instructions
+
+            ### Installer
+            1. Download `ChipBeats-X.X.X.exe`
+            2. Run the installer
+            3. Follow the setup wizard
+            4. Launch ChipBeats from Start Menu or Desktop shortcut
+
+            ### Portable
+            1. Download `ChipBeats-X.X.X-portable.exe`
+            2. Run the executable (no installation needed)
+
+            ## System Requirements
+
+            - Windows 10 or later (64-bit)
+            - 100 MB free disk space
+            - Modern web browser audio support
+
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
