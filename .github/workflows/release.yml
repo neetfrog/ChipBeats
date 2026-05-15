@@ -36,7 +36,6 @@ jobs:
         with:
           files: |
             dist/ChipBeats-*.exe
-            dist/ChipBeats-*-portable.exe
             dist/ChipBeats-*.zip
           draft: false
           prerelease: false

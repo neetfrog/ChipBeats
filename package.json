@@ -48,7 +48,8 @@
       "createDesktopShortcut": true,
       "createStartMenuShortcut": true,
       "shortcutName": "ChipBeats",
-      "packElevateHelper": false
+      "packElevateHelper": false,
+      "artifactName": "${productName}-${version}.exe"
     },
     "portable": {
       "artifactName": "${productName}-${version}-portable.exe"
